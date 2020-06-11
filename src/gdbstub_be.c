@@ -1150,7 +1150,7 @@ int32_t  gdbstub_be_get_stop_reason (const uint8_t xlen, uint8_t *p_stop_reason)
     if (status == status_err) return -1;
 
     uint32_t dcsr = (uint32_t) dcsr64;
-    uint8_t cause = fn_dcsr_cause (dcsr);
+    DM_DCSR_Cause cause = fn_dcsr_cause (dcsr);
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp,
 		 "    gdbstub_be_get_stop_reason () => halted; dcsr.cause = %0d\n",
@@ -1158,7 +1158,28 @@ int32_t  gdbstub_be_get_stop_reason (const uint8_t xlen, uint8_t *p_stop_reason)
 	fflush (logfile_fp);
     }
 
-    *p_stop_reason = cause;
+    switch (cause) {
+    case DM_DCSR_CAUSE_EBREAK:
+    case DM_DCSR_CAUSE_TRIGGER:
+	// SIGTRAP
+	*p_stop_reason = 0x05;
+	break;
+    case DM_DCSR_CAUSE_HALTREQ:
+	// SIGINT
+	*p_stop_reason = 0x02;
+	break;
+    case DM_DCSR_CAUSE_STEP:
+	// SIGTRAP
+	*p_stop_reason = 0x05;
+	break;
+    default:
+	*p_stop_reason = 0;
+	if (logfile_fp != NULL) {
+	    fprintf (logfile_fp,
+		     "    gdbstub_be_get_stop_reason () => unknown\n");
+	    fflush (logfile_fp);
+	}
+    }
     return 0;
 }
 
