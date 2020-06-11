@@ -53,6 +53,7 @@ static int verbosity = 1;
 static bool initialized = false;
 
 static FILE *logfile_fp = NULL;
+static bool autoclose_logfile = false;
 
 // ================================================================
 // Run-mode
@@ -526,12 +527,13 @@ const char *gdbstub_be_help (void)
 // ================================================================
 // Initialize gdbstub_be
 
-uint32_t  gdbstub_be_init (FILE *logfile)
+uint32_t  gdbstub_be_init (FILE *logfile, bool autoclose)
 {
     // Fill in whatever is needed to initialize
 
-    logfile_fp  = logfile;
-    initialized = true;
+    logfile_fp        = logfile;
+    autoclose_logfile = autoclose;
+    initialized       = true;
 
     return status_ok;
 }
@@ -543,7 +545,7 @@ uint32_t  gdbstub_be_final (const uint8_t xlen)
 {
     // Fill in whatever is needed as final actions
 
-    if (logfile_fp != NULL)
+    if (autoclose_logfile && (logfile_fp != NULL))
 	fclose (logfile_fp);
 
     return status_ok;

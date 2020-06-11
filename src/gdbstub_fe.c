@@ -1535,8 +1535,8 @@ void *main_gdbstub (void *arg)
 	fflush (logfile);
     }
 
-    // Initialize the gdbstub_be
-    uint32_t status = gdbstub_be_init (logfile);
+    // Initialize the gdbstub_be (we own logfile)
+    uint32_t status = gdbstub_be_init (logfile, false);
     if (status != status_ok) {
 	if (logfile) {
 	    fprintf (logfile, "ERROR: gdbstub_fe.main_gdbstub: error in gdbstub_be_startup\n");

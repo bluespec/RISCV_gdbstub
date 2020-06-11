@@ -35,7 +35,7 @@ const char *gdbstub_be_help (void);
 // Initialize gdbstub_be
 
 extern
-uint32_t  gdbstub_be_init (FILE *logfile);
+uint32_t  gdbstub_be_init (FILE *logfile, bool autoclose);
 
 // ================================================================
 // Final actions for gdbstub_be
