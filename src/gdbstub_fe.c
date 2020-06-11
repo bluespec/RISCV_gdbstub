@@ -1406,8 +1406,8 @@ void *main_gdbstub (void *arg)
 
     fprintf (logfile, "main_gdbstub: for RV%0d\n", gdbstub_be_xlen);
     if ((gdbstub_be_xlen != 32) && (gdbstub_be_xlen != 64)) {
-    fprintf (logfile, "ERROR: gdbstub_fe.main_gdbstub: invalid RVnn; nn should be 32 or 64 only\n");
-	return NULL;
+	fprintf (logfile, "ERROR: gdbstub_fe.main_gdbstub: invalid RVnn; nn should be 32 or 64 only\n");
+	goto done;
     }
 
     char gdb_rsp_pkt_buf [GDB_RSP_PKT_BUF_MAX];
@@ -1419,14 +1419,14 @@ void *main_gdbstub (void *arg)
     uint32_t status = gdbstub_be_init (logfile);
     if (status != status_ok) {
 	fprintf (logfile, "ERROR: gdbstub_fe.main_gdbstub: error in gdbstub_be_startup\n");
-	return NULL;
+	goto done;
     }
 
     // Receive initial '+' from GDB
     char ch = recv_ack_nak ();
     if (ch != '+') {
 	fprintf (logfile, "ERROR: gdbstub_fe.main_gdbstub: Expecting initial '+', but received %c from GDB\n", ch);
-	return NULL;
+	goto done;
     }
 
     // Loop, processing packets from GDB
@@ -1523,7 +1523,9 @@ void *main_gdbstub (void *arg)
         }
     }
 
+done:
     fclose (logfile);
+    close (gdb_fd);
     return NULL;
 }
 
