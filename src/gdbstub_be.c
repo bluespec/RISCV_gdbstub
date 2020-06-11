@@ -782,6 +782,16 @@ uint32_t gdbstub_be_verbosity (uint32_t n)
 
 // Note: the ELF file specifies XLEN; we record it here in gdbstub_be_xlen
 
+#ifdef GDBSTUB_NO_ELF_LOAD
+uint32_t gdbstub_be_elf_load (const char *elf_filename)
+{
+    if (logfile_fp != NULL) {
+	fprintf (logfile_fp, "gdbstub_be_elf_load compiled out; returning error\n");
+    }
+
+    return status_err;
+}
+#else
 uint32_t gdbstub_be_elf_load (const char *elf_filename)
 {
     struct timespec timespec1, timespec2;
@@ -844,6 +854,7 @@ uint32_t gdbstub_be_elf_load (const char *elf_filename)
     fprintf (stdout,     "    ELF file loaded\n");
     return status;
 }
+#endif
 
 // ================================================================
 // Continue the HW execution at given PC
