@@ -30,6 +30,7 @@
 
 #include "RVDM.h"
 #include "gdbstub_be.h"
+#include "gdbstub_dmi.h"
 #include "Elf_read.h"
 
 // ****************************************************************
