@@ -833,7 +833,7 @@ ssize_t recv_RSP_packet_from_GDB (char *buf, const size_t buf_size)
 static
 void send_OK_or_error_response (uint32_t status)
 {
-    if (status == 0) {
+    if (status == status_ok) {
 	send_RSP_packet_to_GDB ("OK", 2);
     }
     else {
@@ -862,7 +862,7 @@ void handle_RSP_control_C (const char *buf, const size_t buf_len)
 {
     uint32_t status = gdbstub_be_stop (gdbstub_be_xlen);
     if (status == status_ok) {
-	send_OK_or_error_response (0x01);
+	send_OK_or_error_response (status_err);
 	return;
     }
     waiting_for_stop_reason = true;
@@ -882,7 +882,7 @@ void handle_RSP_stop_reason (const char *buf, const size_t buf_len)
         return;
     }
     else if (sr == -1) {
-        send_OK_or_error_response (0x01);
+        send_OK_or_error_response (status_err);
         waiting_for_stop_reason = false;
         return;
     }
@@ -913,7 +913,7 @@ void handle_RSP_c_continue (const char *buf, const size_t buf_len)
     }
     else {
 	// Neither "c" nor "c addr"
-	send_OK_or_error_response (01);
+	send_OK_or_error_response (status_err);
 	return;
     }
 
@@ -959,7 +959,7 @@ void handle_RSP_g_read_all_registers (const char *buf, const size_t buf_len)
     for (j = 0; j < 32; j++) {
 	status = gdbstub_be_GPR_read (gdbstub_be_xlen, j, & value);
 	if (status != status_ok) {
-	    send_OK_or_error_response (0x01);
+	    send_OK_or_error_response (status_err);
 	    return;
 	}
 	val_to_hex16 (value, gdbstub_be_xlen, & (response [j * num_ASCII_hex_digits]));
@@ -968,7 +968,7 @@ void handle_RSP_g_read_all_registers (const char *buf, const size_t buf_len)
     // PC
     status = gdbstub_be_PC_read (gdbstub_be_xlen, & value);
     if (status != status_ok) {
-	send_OK_or_error_response (0x01);
+	send_OK_or_error_response (status_err);
 	return;
     }
     val_to_hex16 (value, gdbstub_be_xlen, & (response [32 * num_ASCII_hex_digits]));
@@ -1053,13 +1053,13 @@ void handle_RSP_G_write_all_registers (const char *buf, const size_t buf_len)
     // TODO: FPRs
 
     // All ok, send OK response
-    send_OK_or_error_response (0);
+    send_OK_or_error_response (status_ok);
 
  error_response:
     if (logfile) {
 	fprint_bytes (logfile, "    buf: ", buf, buf_len-1, "\n");
     }
-    send_OK_or_error_response (0x01);
+    send_OK_or_error_response (status_err);
     return;
 }
 
@@ -1077,7 +1077,7 @@ void handle_RSP_m_read_mem (const char *buf, const size_t buf_len)
 	if (logfile) {
 	    fprintf (logfile, "ERROR: gdbstub_fe.packet '$m...' packet from GDB: unable to parse addr, len\n");
 	}
-	send_OK_or_error_response (0x01);
+	send_OK_or_error_response (status_err);
 	return;
     }
 
@@ -1094,7 +1094,7 @@ void handle_RSP_m_read_mem (const char *buf, const size_t buf_len)
 	if (logfile) {
 	    fprintf (logfile, "ERROR: gdbstub_fe.packet '$m...' packet from GDB: error reading HW memory\n");
 	}
-	send_OK_or_error_response (0x01);
+	send_OK_or_error_response (status_err);
 	return;
     }
 
@@ -1120,7 +1120,7 @@ handle_RSP_M_write_mem_hex_data (const char *buf, const size_t buf_len)
 	if (logfile) {
 	    fprintf (logfile, "ERROR: gdbstub_fe: packet '$M...' packet from GDB: unable to parse addr, len\n");
 	}
-	send_OK_or_error_response (0x01);
+	send_OK_or_error_response (status_err);
 	return;
     }
 
@@ -1131,7 +1131,7 @@ handle_RSP_M_write_mem_hex_data (const char *buf, const size_t buf_len)
 	    fprintf (logfile, "ERROR: gdbstub_fe: packet '$M addr, len ...' packet from GDB: no ':' following len\n");
 	    fprintf (logfile, "    addr = 0x%0" PRIx64 ", len = 0x%0" PRIx64 "\n", addr, length);
 	}
-	send_OK_or_error_response (0x01);
+	send_OK_or_error_response (status_err);
 	return;
     }
 
@@ -1145,7 +1145,7 @@ handle_RSP_M_write_mem_hex_data (const char *buf, const size_t buf_len)
 	    fprintf (logfile, "    # of hex data digits = %0zu; len * 2 = 0x%0" PRId64 "\n",
 		     num_hex_data_digits, length * 2);
 	}
-	send_OK_or_error_response (0x03);
+	send_OK_or_error_response (status_err);
 	return;
     }
 
@@ -1174,7 +1174,7 @@ void handle_RSP_p_read_register (const char *buf, const size_t buf_len)
     const size_t num_ASCII_hex_digits = gdbstub_be_xlen / (8 / 2);
 
     if (1 != sscanf (buf, "p%x", & regnum)) {
-	send_OK_or_error_response (0x01);
+	send_OK_or_error_response (status_err);
 	return;
     }
 
@@ -1182,14 +1182,14 @@ void handle_RSP_p_read_register (const char *buf, const size_t buf_len)
 	uint8_t gprnum = (uint8_t) regnum;
 	uint32_t status = gdbstub_be_GPR_read (gdbstub_be_xlen, gprnum, & value);
 	if (status != status_ok) {
-	    send_OK_or_error_response (0x01);
+	    send_OK_or_error_response (status_err);
 	    return;
 	}
     }
     else if (regnum == 0x20) {
 	uint32_t status = gdbstub_be_PC_read (gdbstub_be_xlen, & value);
 	if (status != status_ok) {
-	    send_OK_or_error_response (0x01);
+	    send_OK_or_error_response (status_err);
 	    return;
 	}
     }
@@ -1198,7 +1198,7 @@ void handle_RSP_p_read_register (const char *buf, const size_t buf_len)
 	uint8_t fprnum = (uint8_t) (regnum - 0x21);
 	uint32_t status = gdbstub_be_FPR_read (gdbstub_be_xlen, fprnum, & value);
 	if (status != status_ok) {
-	    send_OK_or_error_response (0x01);
+	    send_OK_or_error_response (status_err);
 	    return;
 	}
     }
@@ -1207,7 +1207,7 @@ void handle_RSP_p_read_register (const char *buf, const size_t buf_len)
 	uint16_t csr_addr = (uint16_t) (regnum - 0x41);
 	uint32_t status = gdbstub_be_CSR_read (gdbstub_be_xlen, csr_addr, & value);
 	if (status != status_ok) {
-	    send_OK_or_error_response (0x01);
+	    send_OK_or_error_response (status_err);
 	    return;
 	}
     }
@@ -1216,7 +1216,7 @@ void handle_RSP_p_read_register (const char *buf, const size_t buf_len)
 	    fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_p_read_register: unknown reg number: 0x%0x\n",
 		     regnum);
 	}
-	send_OK_or_error_response (0x01);
+	send_OK_or_error_response (status_err);
 	return;
     }
 
@@ -1370,11 +1370,11 @@ handle_RSP_qRcmd (const char *buf, const size_t buf_len)
     // Final response for the qRcmd command
     if (status == status_ok) {
 	// Ok
-	send_OK_or_error_response (0);
+	send_OK_or_error_response (status_ok);
     }
     else {
 	// Packet format error
-	send_OK_or_error_response (1);
+	send_OK_or_error_response (status_err);
     }
 }
 
@@ -1445,7 +1445,7 @@ void handle_RSP_s_step (const char *buf, const size_t buf_len)
     }
     else {
 	// Neither "s" nor "s addr"
-	send_OK_or_error_response (01);
+	send_OK_or_error_response (status_err);
 	return;
     }
 
@@ -1473,7 +1473,7 @@ handle_RSP_X_write_mem_bin_data (const char *buf, const size_t buf_len)
 	if (logfile) {
 	    fprintf (logfile, "ERROR: gdbstub_fe.packet '$X...' packet from GDB: unable to parse addr, len\n");
 	}
-	send_OK_or_error_response (0x01);
+	send_OK_or_error_response (status_err);
 	return;
     }
 
@@ -1484,7 +1484,7 @@ handle_RSP_X_write_mem_bin_data (const char *buf, const size_t buf_len)
 	    fprintf (logfile, "ERROR: gdbstub_fe.packet '$X addr, len ...' packet from GDB: no ':' following len\n");
 	    fprintf (logfile, "    addr = 0x%0" PRIx64 ", len = 0x%0" PRIx64 "\n", addr, length);
 	}
-	send_OK_or_error_response (0x01);
+	send_OK_or_error_response (status_err);
 	return;
     }
     // Check that packet has 'length' data bytes
@@ -1496,7 +1496,7 @@ handle_RSP_X_write_mem_bin_data (const char *buf, const size_t buf_len)
 	    fprintf (logfile, "    addr = 0x%0" PRIx64 ", len = 0x%0" PRIx64 "\n", addr, length);
 	    fprintf (logfile, "    # of binary data data bytes = %0zu\n", num_bin_data_bytes);
 	}
-	send_OK_or_error_response (0x03);
+	send_OK_or_error_response (status_err);
 	return;
     }
 
@@ -1571,10 +1571,10 @@ void *main_gdbstub (void *arg)
                 // CPU.
                 uint32_t status = gdbstub_be_stop (gdbstub_be_xlen);
                 if (status != status_ok) {
-                    send_OK_or_error_response (0x01);
+                    send_OK_or_error_response (status_err);
 		    waiting_for_stop_reason = false;
                 }
-		// send_OK_or_error_response (0x01);
+		// send_OK_or_error_response (status_err);
 		// waiting_for_stop_reason = false;
 	    }
 	    else {
