@@ -1663,11 +1663,13 @@ void *main_gdbstub (void *arg)
     }
 
 done:
-    if (logfile) {
-	fclose (logfile);
-    }
-    if (stop_fd >= 0) {
-	close (stop_fd);
+    if (params->autoclose_logfile_stop_fd) {
+	if (logfile) {
+	    fclose (logfile);
+	}
+	if (stop_fd >= 0) {
+	    close (stop_fd);
+	}
     }
     close (gdb_fd);
     return NULL;

@@ -25,6 +25,10 @@ typedef struct {
     // a byte can be read. Use -1 to disable.
     int   stop_fd;
 
+    // Whether to automatically close logfile and stop_fd. gdb_fd is
+    // always closed.
+    bool  autoclose_logfile_stop_fd;
+
 } Gdbstub_FE_Params;
 
 // ================================================================
