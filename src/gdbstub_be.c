@@ -57,6 +57,8 @@ static bool initialized = false;
 static FILE *logfile_fp = NULL;
 static bool autoclose_logfile = false;
 
+static uint32_t orig_dcsr;
+
 // ================================================================
 // Run-mode
 
@@ -535,9 +537,40 @@ uint32_t  gdbstub_be_init (FILE *logfile, bool autoclose)
 
     logfile_fp        = logfile;
     autoclose_logfile = autoclose;
-    initialized       = true;
+
+    uint64_t dcsr64;
+    uint8_t  cmderr;
+    uint32_t status = gdbstub_be_reg_read (gdbstub_be_xlen, csr_addr_dcsr, & dcsr64, & cmderr);
+    if (status != status_ok) goto err;
+
+    // Set ebreakm/ebreaks/ebreaku
+    uint32_t dcsr = (uint32_t) dcsr64;
+    orig_dcsr = dcsr;
+    dcsr = fn_mk_dcsr (fn_dcsr_xdebugver (dcsr),
+		       true,                     // ebreakm
+		       true,                     // ebreaks
+		       true,                     // ebreaku
+		       fn_dcsr_stepie (dcsr),
+		       fn_dcsr_stopcount (dcsr),
+		       fn_dcsr_stoptime (dcsr),
+		       fn_dcsr_cause (dcsr),
+		       fn_dcsr_mprven (dcsr),
+		       fn_dcsr_nmip (dcsr),
+		       fn_dcsr_step (dcsr),
+		       fn_dcsr_prv (dcsr));
+
+    status = gdbstub_be_reg_write (gdbstub_be_xlen, csr_addr_dcsr, dcsr, & cmderr);
+    if (status != status_ok) goto err;
+
+    initialized = true;
 
     return status_ok;
+
+err:
+    if (autoclose_logfile && (logfile_fp != NULL))
+	fclose (logfile_fp);
+
+    return status;
 }
 
 // ================================================================
@@ -547,10 +580,36 @@ uint32_t  gdbstub_be_final (const uint8_t xlen)
 {
     // Fill in whatever is needed as final actions
 
+    uint64_t dcsr64;
+    uint8_t  cmderr;
+    uint32_t status = gdbstub_be_reg_read (xlen, csr_addr_dcsr, & dcsr64, & cmderr);
+    if (status != status_ok) goto err;
+
+    // Restore ebreakm/ebreaks/ebreaku
+    uint32_t dcsr = (uint32_t) dcsr64;
+    orig_dcsr = dcsr;
+    dcsr = fn_mk_dcsr (fn_dcsr_xdebugver (dcsr),
+		       fn_dcsr_ebreakm (orig_dcsr),
+		       fn_dcsr_ebreaks (orig_dcsr),
+		       fn_dcsr_ebreaku (orig_dcsr),
+		       fn_dcsr_stepie (dcsr),
+		       fn_dcsr_stopcount (dcsr),
+		       fn_dcsr_stoptime (dcsr),
+		       fn_dcsr_cause (dcsr),
+		       fn_dcsr_mprven (dcsr),
+		       fn_dcsr_nmip (dcsr),
+		       fn_dcsr_step (dcsr),
+		       fn_dcsr_prv (dcsr));
+
+    status = gdbstub_be_reg_write (xlen, csr_addr_dcsr, dcsr, & cmderr);
+    if (status != status_ok) goto err;
+
+    // Success and error paths both ultimately need to close the file.
+err:
     if (autoclose_logfile && (logfile_fp != NULL))
 	fclose (logfile_fp);
 
-    return status_ok;
+    return status;
 }
 
 // ================================================================
