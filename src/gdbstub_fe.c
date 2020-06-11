@@ -861,7 +861,7 @@ static
 void handle_RSP_control_C (const char *buf, const size_t buf_len)
 {
     uint32_t status = gdbstub_be_stop (gdbstub_be_xlen);
-    if (status == status_ok) {
+    if (status != status_ok) {
 	send_OK_or_error_response (status_err);
 	return;
     }
