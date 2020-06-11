@@ -26,7 +26,7 @@
 // #define MAX_MEM_SIZE (((uint64_t) 0x400) * ((uint64_t) 0x400) * ((uint64_t) 0x400))
 #define MAX_MEM_SIZE ((uint64_t) 0x90000000)
 
-static uint8_t mem_buf [MAX_MEM_SIZE];
+static char mem_buf [MAX_MEM_SIZE];
 
 // ================================================================
 // Load an ELF file.
@@ -224,7 +224,8 @@ int c_mem_load_elf (FILE          *logfile_fp,
 	    data = elf_getdata (scn, data);
 
 	    // Get the number of symbols in this section
-	    int symbols = shdr.sh_size / shdr.sh_entsize;
+	    // Should be uint64_t but gelf_getsym only takes an int
+	    int symbols = (int) (shdr.sh_size / shdr.sh_entsize);
 
 	    // search for the uart_default symbols we need to potentially modify.
 	    GElf_Sym sym;
@@ -255,25 +256,25 @@ int c_mem_load_elf (FILE          *logfile_fp,
 		if (logfile_fp != NULL) {
 		    fprintf (logfile_fp, "Writing symbols to:    symbol_table.txt\n");
 		}
-		if (p_features->pc_start == -1)
+		if ((~ p_features->pc_start) == 0) {
 		    if (logfile_fp != NULL) {
 			fprintf (logfile_fp, "    No '_start' label found\n");
 		    }
-		else
+		} else
 		    fprintf (fp_symbol_table, "_start    0x%0" PRIx64 "\n", p_features->pc_start);
 
-		if (p_features->pc_exit == -1)
+		if ((~ p_features->pc_exit) == 0) {
 		    if (logfile_fp != NULL) {
 			fprintf (logfile_fp, "    No 'exit' label found\n");
 		    }
-		else
+		} else
 		    fprintf (fp_symbol_table, "exit      0x%0" PRIx64 "\n", p_features->pc_exit);
 
-		if (p_features->tohost_addr == -1)
+		if ((~ p_features->tohost_addr) == 0) {
 		    if (logfile_fp != NULL) {
 			fprintf (logfile_fp, "    No 'tohost' symbol found\n");
 		    }
-		else
+		} else
 		    fprintf (fp_symbol_table, "tohost    0x%0" PRIx64 "\n", p_features->tohost_addr);
 
 		fclose (fp_symbol_table);

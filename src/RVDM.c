@@ -41,6 +41,7 @@ void dmi_write (uint16_t addr, uint32_t data)
 uint32_t  dmi_read  (uint16_t addr)
 {
     fprintf (stderr, "RVDM.c: dmi_read(): Not yet implemented\n");
+    return 0;
 }
 
 // ================================================================
@@ -182,17 +183,17 @@ uint32_t fn_mk_dmcontrol (bool       haltreq,
 			  bool       ndmreset,
 			  bool       dmactive)
 {
-    return ((  (haltreq         & 0x1)   << 31)
-	    | ((resumereq       & 0x1)   << 30)
-	    | ((hartreset       & 0x1)   << 29)
-	    | ((ackhavereset    & 0x1)   << 28)
-	    | ((hasel           & 0x1)   << 26)
-	    | ((hartsello       & 0x3FF) << 16)
-	    | ((hartselhi       & 0x3FF) <<  6)
-	    | ((setresethaltreq & 0x1)   <<  3)
-	    | ((clrresethaltreq & 0x1)   <<  2)
-	    | ((ndmreset        & 0x1)   <<  1)
-	    | ((dmactive        & 0x1)   <<  0));
+    return ((  (((uint32_t) haltreq)         & 0x1)   << 31)
+	    | ((((uint32_t) resumereq)       & 0x1)   << 30)
+	    | ((((uint32_t) hartreset)       & 0x1)   << 29)
+	    | ((((uint32_t) ackhavereset)    & 0x1)   << 28)
+	    | ((((uint32_t) hasel)           & 0x1)   << 26)
+	    | ((((uint32_t) hartsello)       & 0x3FF) << 16)
+	    | ((((uint32_t) hartselhi)       & 0x3FF) <<  6)
+	    | ((((uint32_t) setresethaltreq) & 0x1)   <<  3)
+	    | ((((uint32_t) clrresethaltreq) & 0x1)   <<  2)
+	    | ((((uint32_t) ndmreset)        & 0x1)   <<  1)
+	    | ((((uint32_t) dmactive)        & 0x1)   <<  0));
 }
 
 bool     fn_dmcontrol_haltreq         (uint32_t dm_word) { return ((dm_word >> 31) & 0x1); }
@@ -345,13 +346,13 @@ uint32_t fn_mk_command_access_reg (DM_command_access_reg_size  size,
 				   bool                        write,
 				   uint16_t                    regno)
 {
-    return ((DM_COMMAND_CMDTYPE_ACCESS_REG << 24)
-	    | ((size             & 0x7)    << 20)
-	    | ((aarpostincrement & 0x1)    << 19)
-	    | ((postexec         & 0x1)    << 18)
-	    | ((transfer         & 0x1)    << 17)
-	    | ((write            & 0x1)    << 16)
-	    | ((regno            & 0xFFFF) <<  0));
+    return ((  ((uint32_t) DM_COMMAND_CMDTYPE_ACCESS_REG) << 24)
+	    | ((((uint32_t) size)             & 0x7)      << 20)
+	    | ((((uint32_t) aarpostincrement) & 0x1)      << 19)
+	    | ((((uint32_t) postexec)         & 0x1)      << 18)
+	    | ((((uint32_t) transfer)         & 0x1)      << 17)
+	    | ((((uint32_t) write)            & 0x1)      << 16)
+	    | ((((uint32_t) regno)            & 0xFFFF)   <<  0));
 }
 
 DM_command_cmdtype         fn_command_cmdtype         (uint32_t dm_word) { return ((dm_word >> 24) & 0xFF); }
@@ -416,23 +417,23 @@ uint32_t fn_mk_sbcs (bool        sbbusyerror,
 		     bool        sbreadondata,
 		     DM_sberror  sberror)
 {
-    return ((  (1               & 0x7)  << 29)    // R        sbversion
-	    | ((sbbusyerror     & 0x1)  << 22)    // R/W1C
-	    | ((0               & 0x1)  << 21)    // R        sbbusy
-	    | ((sbreadonaddr    & 0x1)  << 20)    // R/W
-	    | ((sbaccess        & 0x7)  << 17)    // R/W
-	    | ((sbautoincrement & 0x1)  << 16)    // R/W
-	    | ((sbreadondata    & 0x1)  << 15)    // R/W
-	    | ((sberror         & 0x7)  << 12)    // R/W1C
-	    | ((0               & 0x7F) << 5)     // R        sbasize
-	    | ((0               & 0x1F) << 4)     // R        sbaccess128
-	    | ((0               & 0x1F) << 3)     // R        sbaccess64
-	    | ((0               & 0x1F) << 2)     // R        sbaccess32
-	    | ((0               & 0x1F) << 1)     // R        sbaccess16
-	    | ((0               & 0x1F) << 0));   // R        sbaccess8
+    return ((  (((uint32_t) 1)               & 0x7)  << 29)    // R        sbversion
+	    | ((((uint32_t) sbbusyerror)     & 0x1)  << 22)    // R/W1C
+	    | ((((uint32_t) 0)               & 0x1)  << 21)    // R        sbbusy
+	    | ((((uint32_t) sbreadonaddr)    & 0x1)  << 20)    // R/W
+	    | ((((uint32_t) sbaccess)        & 0x7)  << 17)    // R/W
+	    | ((((uint32_t) sbautoincrement) & 0x1)  << 16)    // R/W
+	    | ((((uint32_t) sbreadondata)    & 0x1)  << 15)    // R/W
+	    | ((((uint32_t) sberror)         & 0x7)  << 12)    // R/W1C
+	    | ((((uint32_t) 0)               & 0x7F) << 5)     // R        sbasize
+	    | ((((uint32_t) 0)               & 0x1F) << 4)     // R        sbaccess128
+	    | ((((uint32_t) 0)               & 0x1F) << 3)     // R        sbaccess64
+	    | ((((uint32_t) 0)               & 0x1F) << 2)     // R        sbaccess32
+	    | ((((uint32_t) 0)               & 0x1F) << 1)     // R        sbaccess16
+	    | ((((uint32_t) 0)               & 0x1F) << 0));   // R        sbaccess8
 }
 
-uint8_t     fn_sbcs_sbversion       (uint32_t dm_word) { return ((dm_word >> 29) & 0x7); }
+uint8_t     fn_sbcs_sbversion       (uint32_t dm_word) { return (uint8_t) ((dm_word >> 29) & 0x7); }
 bool        fn_sbcs_sbbusyerror     (uint32_t dm_word) { return ((dm_word >> 22) & 0x1); }
 bool        fn_sbcs_sbbusy          (uint32_t dm_word) { return ((dm_word >> 21) & 0x1); }
 bool        fn_sbcs_sbreadonaddr    (uint32_t dm_word) { return ((dm_word >> 20) & 0x1); }
@@ -440,7 +441,7 @@ DM_sbaccess fn_sbcs_sbaccess        (uint32_t dm_word) { return ((dm_word >> 17)
 bool        fn_sbcs_sbautoincrement (uint32_t dm_word) { return ((dm_word >> 16) & 0x1); }
 bool        fn_sbcs_sbreadondata    (uint32_t dm_word) { return ((dm_word >> 15) & 0x1); }
 DM_sberror  fn_sbcs_sberror         (uint32_t dm_word) { return ((dm_word >> 12) & 0x7); }
-uint8_t     fn_sbcs_sbasize         (uint32_t dm_word) { return ((dm_word >> 5) & 0x7F); }
+uint8_t     fn_sbcs_sbasize         (uint32_t dm_word) { return (uint8_t) ((dm_word >> 5) & 0x7F); }
 bool        fn_sbcs_sbaccess128     (uint32_t dm_word) { return ((dm_word >> 4) & 0x1);  }
 bool        fn_sbcs_sbaccess64      (uint32_t dm_word) { return ((dm_word >> 3) & 0x1);  }
 bool        fn_sbcs_sbaccess32      (uint32_t dm_word) { return ((dm_word >> 2) & 0x1);  }
@@ -512,18 +513,18 @@ uint32_t fn_mk_dcsr (DM_DCSR_XDebugVer xdebugver,
 		     bool              step,
 		     DM_DCSR_PRV       prv)
 {
-    return ((  (xdebugver & 0xF) << 28)
-	    | ((ebreakm   & 0x1) << 15)
-	    | ((ebreaks   & 0x1) << 13)
-	    | ((ebreaku   & 0x1) << 12)
-	    | ((stepie    & 0x1) << 11)
-	    | ((stopcount & 0x1) << 10)
-	    | ((stoptime  & 0x1) <<  9)
-	    | ((cause     & 0x7) <<  6)
-	    | ((mprven    & 0x1) <<  4)
-	    | ((nmip      & 0x1) <<  3)
-	    | ((step      & 0x1) <<  2)
-	    | ((prv       & 0x3) <<  0));
+    return ((  (((uint32_t) xdebugver) & 0xF) << 28)
+	    | ((((uint32_t) ebreakm)   & 0x1) << 15)
+	    | ((((uint32_t) ebreaks)   & 0x1) << 13)
+	    | ((((uint32_t) ebreaku)   & 0x1) << 12)
+	    | ((((uint32_t) stepie)    & 0x1) << 11)
+	    | ((((uint32_t) stopcount) & 0x1) << 10)
+	    | ((((uint32_t) stoptime)  & 0x1) <<  9)
+	    | ((((uint32_t) cause)     & 0x7) <<  6)
+	    | ((((uint32_t) mprven)    & 0x1) <<  4)
+	    | ((((uint32_t) nmip)      & 0x1) <<  3)
+	    | ((((uint32_t) step)      & 0x1) <<  2)
+	    | ((((uint32_t) prv)       & 0x3) <<  0));
 }
 
 DM_DCSR_XDebugVer fn_dcsr_xdebugver (uint32_t dm_word) { return ((dm_word >> 28) & 0xF); }
@@ -543,15 +544,15 @@ void fprint_DM_DCSR_Cause (FILE *fp, char *pre, DM_DCSR_Cause  cause, char *post
 {
     fprintf (fp, "%s", pre);
     switch (cause) {
-    DM_DCSR_CAUSE_RESERVED0:  fprintf (fp, "CAUSE_RESERVED0");
-    DM_DCSR_CAUSE_EBREAK:     fprintf (fp, "CAUSE_EBREAK");
-    DM_DCSR_CAUSE_TRIGGER:    fprintf (fp, "CAUSE_TRIGGER");
-    DM_DCSR_CAUSE_HALTREQ:    fprintf (fp, "CAUSE_HALTREQ");
-    DM_DCSR_CAUSE_STEP:       fprintf (fp, "CAUSE_STEP");
-    DM_DCSR_CAUSE_RESERVED5:  fprintf (fp, "CAUSE_RESERVED5");
-    DM_DCSR_CAUSE_RESERVED6:  fprintf (fp, "CAUSE_RESERVED6");
-    DM_DCSR_CAUSE_RESERVED7:  fprintf (fp, "CAUSE_RESERVED7");
-    default:                  fprintf (fp, "CAUSE %0d", cause);
+    case DM_DCSR_CAUSE_RESERVED0:  fprintf (fp, "CAUSE_RESERVED0");  break;
+    case DM_DCSR_CAUSE_EBREAK:     fprintf (fp, "CAUSE_EBREAK");     break;
+    case DM_DCSR_CAUSE_TRIGGER:    fprintf (fp, "CAUSE_TRIGGER");    break;
+    case DM_DCSR_CAUSE_HALTREQ:    fprintf (fp, "CAUSE_HALTREQ");    break;
+    case DM_DCSR_CAUSE_STEP:       fprintf (fp, "CAUSE_STEP");       break;
+    case DM_DCSR_CAUSE_RESERVED5:  fprintf (fp, "CAUSE_RESERVED5");  break;
+    case DM_DCSR_CAUSE_RESERVED6:  fprintf (fp, "CAUSE_RESERVED6");  break;
+    case DM_DCSR_CAUSE_RESERVED7:  fprintf (fp, "CAUSE_RESERVED7");  break;
+    default:                       fprintf (fp, "CAUSE %0d", cause); break;
     }
     fprintf (fp, "%s", post);
 }

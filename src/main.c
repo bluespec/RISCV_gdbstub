@@ -2,7 +2,7 @@
 
 #include "gdbstub_fe.h"
 
-int main (int argc, char *argv)
+int main (int argc, char **argv)
 {
     Gdbstub_FE_Params params;
 
