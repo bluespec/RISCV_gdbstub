@@ -1155,7 +1155,7 @@ int32_t  gdbstub_be_get_stop_reason (const uint8_t xlen, uint8_t *p_stop_reason)
     }
 
     *p_stop_reason = cause;
-    return status_ok;
+    return 0;
 }
 
 // ================================================================
