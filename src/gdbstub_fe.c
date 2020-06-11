@@ -165,13 +165,15 @@ ssize_t gdb_escape (char *dst, const size_t dst_size, const char *src, const siz
     return (ssize_t) jd;
 
  err_dst_too_small:
-    fprintf (logfile, "ERROR: gdbstub_fe.gdb_escape: destination buffer too small\n");
-    fprintf (logfile, "    src [src_len %0zu] = \"", src_len);
-    size_t j;
-    for (j = 0; j < src_len; j++) fprintf (logfile, "%c", src [j]);
-    fprintf (logfile, "\"\n");
-    fprintf (logfile, "    dst_size = %0zu\n", dst_size);
-    fprintf (logfile, "    At src [%0zu], dst [%0zu]\n", js, jd);
+    if (logfile) {
+	fprintf (logfile, "ERROR: gdbstub_fe.gdb_escape: destination buffer too small\n");
+	fprintf (logfile, "    src [src_len %0zu] = \"", src_len);
+	size_t j;
+	for (j = 0; j < src_len; j++) fprintf (logfile, "%c", src [j]);
+	fprintf (logfile, "\"\n");
+	fprintf (logfile, "    dst_size = %0zu\n", dst_size);
+	fprintf (logfile, "    At src [%0zu], dst [%0zu]\n", js, jd);
+    }
     return -1;
 }
 
@@ -213,20 +215,25 @@ ssize_t gdb_unescape (char *dst, const size_t dst_size, const char *src, const s
     return (ssize_t) jd;
 
  err_dst_too_small:
-    fprintf (logfile, "ERROR: gdbstub_fe.gdb_unescape: destination buffer too small\n");
-    fprintf (logfile, "    src [src_len %0zu] = \"", src_len);
-    size_t j;
-    for (j = 0; j < src_len; j++) fprintf (logfile, "%c", src [j]);
-    fprintf (logfile, "\"\n");
-    fprintf (logfile, "    dst_size = %0zu\n", dst_size);
-    fprintf (logfile, "    At src [%0zu], dst [%0zu]\n", js, jd);
+    if (logfile) {
+	fprintf (logfile, "ERROR: gdbstub_fe.gdb_unescape: destination buffer too small\n");
+	fprintf (logfile, "    src [src_len %0zu] = \"", src_len);
+	size_t j;
+	for (j = 0; j < src_len; j++) fprintf (logfile, "%c", src [j]);
+	fprintf (logfile, "\"\n");
+	fprintf (logfile, "    dst_size = %0zu\n", dst_size);
+	fprintf (logfile, "    At src [%0zu], dst [%0zu]\n", js, jd);
+    }
     return -1;
 
  err_ends_in_escape_char:
-    fprintf (logfile, "ERROR: gdbstub_fe.gdb_unescape: last char of src is escape char\n");
-    fprintf (logfile, "    src [src_len %0zu] = \"", src_len);
-    for (j = 0; j < src_len; j++) fprintf (logfile, "%c", src [j]);
-    fprintf (logfile, "\"\n");
+    if (logfile) {
+	fprintf (logfile, "ERROR: gdbstub_fe.gdb_unescape: last char of src is escape char\n");
+	fprintf (logfile, "    src [src_len %0zu] = \"", src_len);
+	size_t j;
+	for (j = 0; j < src_len; j++) fprintf (logfile, "%c", src [j]);
+	fprintf (logfile, "\"\n");
+    }
     return -1;
 }
 
@@ -291,21 +298,27 @@ int send_ack_nak (char ack_char)
     while (true) {
 	ssize_t n = write (gdb_fd, & ack_char, 1);
 	if (n < 0) {
-	    fprintf (logfile, "ERROR: gdbstub_fe.send_ack_nak: write (ack_char '%c') failed\n", ack_char);
+	    if (logfile) {
+		fprintf (logfile, "ERROR: gdbstub_fe.send_ack_nak: write (ack_char '%c') failed\n", ack_char);
+	    }
 	    perror (NULL);
 	    return -1;
 	}
 	else if (n == 0) {
 	    if (n_iters > 1000000) {
-		fprintf (logfile, "ERROR: gdbstub_fe.send_ack_nak: nothing sent in 1,000,000 write () attempts\n");
+		if (logfile) {
+		    fprintf (logfile, "ERROR: gdbstub_fe.send_ack_nak: nothing sent in 1,000,000 write () attempts\n");
+		}
 		return -1;
 	    }
 	    usleep (5);
 	    n_iters++;
 	}
 	else {
-	    fprintf (logfile, "w %c\n", ack_char);
-	    fflush (logfile);
+	    if (logfile) {
+		fprintf (logfile, "w %c\n", ack_char);
+		fflush (logfile);
+	    }
 	    return 0;
 	}
     }
@@ -327,8 +340,10 @@ char recv_ack_nak (void)
 	    if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
 		// Nothing available yet
 		if (n_iters > n_iters_max) {
-		    fprintf (logfile, "ERROR: gdbstub_fe.recv_ack_nak: nothing received in %0zu read () attempts\n",
-			     n_iters_max);
+		    if (logfile) {
+			fprintf (logfile, "ERROR: gdbstub_fe.recv_ack_nak: nothing received in %0zu read () attempts\n",
+				 n_iters_max);
+		    }
 		    return 'E';
 		}
 		else {
@@ -337,27 +352,35 @@ char recv_ack_nak (void)
 		}
 	    }
 	    else {
-		fprintf (logfile, "ERROR: gdbstub_fe.recv_ack_nak: read () failed\n");
+		if (logfile) {
+		    fprintf (logfile, "ERROR: gdbstub_fe.recv_ack_nak: read () failed\n");
+		}
 		return 'E';
 	    }
 	}
 	else if (n == 0) {
 	    if (n_iters > n_iters_max) {
-		fprintf (logfile, "ERROR: gdbstub_fe.recv_ack_nak: nothing received in %0zu read () attempts\n",
-			 n_iters_max);
+		if (logfile) {
+		    fprintf (logfile, "ERROR: gdbstub_fe.recv_ack_nak: nothing received in %0zu read () attempts\n",
+			     n_iters_max);
+		}
 		return 'E';
 	    }
 	    usleep (5);
 	    n_iters++;
 	}
 	else if ((ack_char == '+') || (ack_char == '-')) {
-	    fprintf (logfile, "r %c\n", ack_char);
-	    fflush (logfile);
+	    if (logfile) {
+		fprintf (logfile, "r %c\n", ack_char);
+		fflush (logfile);
+	    }
 	    return ack_char;
 	}
 	else {
-	    fprintf (logfile, "ERROR: gdbstub_fe.recv_ack_nak: received unexpected char 0x%0x ('%c') \n",
-		     ack_char, ack_char);
+	    if (logfile) {
+		fprintf (logfile, "ERROR: gdbstub_fe.recv_ack_nak: received unexpected char 0x%0x ('%c') \n",
+			 ack_char, ack_char);
+	    }
 	    return 'E';
 	}
     }
@@ -373,10 +396,12 @@ uint8_t value_of_hex_digit (char ch)
     else if ((ch >= 'A') && (ch <= 'F')) return (uint8_t) (ch - 'A' + 10);
     else if ((ch >= '0') && (ch <= '9')) return (uint8_t) (ch - '0');
     else {
-	fprintf (logfile, "ERROR: gdbstub_fe.value_of_hex_digit () argument is not a hex digit\n");
-	fprintf (logfile, "    arg value is: ");
-	fprint_byte (logfile, ch);
-	fprintf (logfile, "\n");
+	if (logfile) {
+	    fprintf (logfile, "ERROR: gdbstub_fe.value_of_hex_digit () argument is not a hex digit\n");
+	    fprintf (logfile, "    arg value is: ");
+	    fprint_byte (logfile, ch);
+	    fprintf (logfile, "\n");
+	}
 	return 0xFF;
     }
 }
@@ -518,8 +543,10 @@ uint32_t send_RSP_packet_to_GDB (const char *buf, const size_t buf_len)
     // Copy the payload from buf to wire_buf, escaping bytes as necessary
     ssize_t s_wire_len = gdb_escape (& (wire_buf [1]), (GDB_RSP_WIRE_BUF_MAX - 1), buf, buf_len);
     if ((s_wire_len < 0) || ((s_wire_len + 4) >= GDB_RSP_WIRE_BUF_MAX)) {
-	fprintf (logfile, "ERROR: gdbstub_fe.send_RSP_packet_to_GDB: packet too large\n");
-	fprintf (logfile, "    Encoded packet will not fit in wire_buf [%0d]\n", GDB_RSP_WIRE_BUF_MAX);
+	if (logfile) {
+	    fprintf (logfile, "ERROR: gdbstub_fe.send_RSP_packet_to_GDB: packet too large\n");
+	    fprintf (logfile, "    Encoded packet will not fit in wire_buf [%0d]\n", GDB_RSP_WIRE_BUF_MAX);
+	}
 	goto err_exit;
     }
 
@@ -540,13 +567,17 @@ uint32_t send_RSP_packet_to_GDB (const char *buf, const size_t buf_len)
 	while (n_sent < (wire_len + 4)) {
 	    ssize_t n = write (gdb_fd, & (wire_buf [n_sent]), (wire_len + 4 - n_sent));
 	    if (n < 0) {
-		fprintf (logfile, "ERROR: gdbstub_fe.send_RSP_packet_to_GDB: write (wire_buf) failed\n");
+		if (logfile) {
+		    fprintf (logfile, "ERROR: gdbstub_fe.send_RSP_packet_to_GDB: write (wire_buf) failed\n");
+		}
 		goto err_exit;
 	    }
 	    else if (n == 0) {
 		if (n_iters > 1000000) {
-		    fprintf (logfile,
-			     "ERROR: gdbstub_fe.send_RSP_packet_to_GDB: nothing sent in 1,000,000 write () attempts\n");
+		    if (logfile) {
+			fprintf (logfile,
+				 "ERROR: gdbstub_fe.send_RSP_packet_to_GDB: nothing sent in 1,000,000 write () attempts\n");
+		    }
 		    goto err_exit;
 		}
 		usleep (5);
@@ -557,23 +588,29 @@ uint32_t send_RSP_packet_to_GDB (const char *buf, const size_t buf_len)
 	    }
 	}
 	// Debug
-	fprint_bytes (logfile, "w ", wire_buf, wire_len + 4, "\n");
+	if (logfile) {
+	    fprint_bytes (logfile, "w ", wire_buf, wire_len + 4, "\n");
+	}
 
 	// Receive '+' (ack) or '-' (nak) from GDB
 	char ch = recv_ack_nak ();
 	if (ch == '+')
 	    return status_ok;
 	else {
-	    fprintf (logfile, "Received nak ('-') from GDB\n");
+	    if (logfile) {
+		fprintf (logfile, "Received nak ('-') from GDB\n");
+	    }
 	    continue; // goto err_exit;
 	}
     }
 
  err_exit:
-    fprintf (logfile, "    buf [buf_len %0zu] = \"", buf_len);
-    size_t j;
-    for (j = 0; j < buf_len; j++) fprintf (logfile, "%c", buf [j]);
-    fprintf (logfile, "\"\n");
+    if (logfile) {
+	fprintf (logfile, "    buf [buf_len %0zu] = \"", buf_len);
+	size_t j;
+	for (j = 0; j < buf_len; j++) fprintf (logfile, "%c", buf [j]);
+	fprintf (logfile, "\"\n");
+    }
     return status_err;
 }
 
@@ -620,13 +657,17 @@ ssize_t recv_RSP_packet_from_GDB (char *buf, const size_t buf_size)
 		// Nothing available
 	    }
 	    else {
-		fprintf (logfile, "ERROR: gdbstub_fe.recv_RSP_packet_from_GDB: read () failed\n");
+		if (logfile) {
+		    fprintf (logfile, "ERROR: gdbstub_fe.recv_RSP_packet_from_GDB: read () failed\n");
+		}
 		return -1;
 	    }
 	}
 	else if (n == 0) {
 	    // eof
-	    fprintf (logfile, "recv_RSP_packet_from_GDB: read () ==> EOF\n");
+	    if (logfile) {
+		fprintf (logfile, "recv_RSP_packet_from_GDB: read () ==> EOF\n");
+	    }
 	    return -1;
 	}
 	else {
@@ -640,17 +681,19 @@ ssize_t recv_RSP_packet_from_GDB (char *buf, const size_t buf_size)
 	start++;
     }
 
-    if (DEBUG_recv_RSP_packet_from_GDB) {
-        fprintf (logfile,
-                "recv_RSP_packet_from_GDB:DBG: free_ptr=%zu, n=%zd, start=%zu\n",
-                free_ptr, n, start);
+    if (DEBUG_recv_RSP_packet_from_GDB && logfile) {
+	fprintf (logfile,
+		"recv_RSP_packet_from_GDB:DBG: free_ptr=%zu, n=%zd, start=%zu\n",
+		free_ptr, n, start);
     }
 
     // discard garbage before packet, if any
     if (start != 0) {
-	fprintf (logfile, "WARNING: gdbstub_fe.recv_RSP_packet_from_GDB: %0zu junk chars before '$'; ignoring:\n",
-		 start);
-	fprint_bytes (logfile, "    [", wire_buf, start, "]\n");
+	if (logfile) {
+	    fprintf (logfile, "WARNING: gdbstub_fe.recv_RSP_packet_from_GDB: %0zu junk chars before '$'; ignoring:\n",
+		     start);
+	    fprint_bytes (logfile, "    [", wire_buf, start, "]\n");
+	}
 
 	memmove (wire_buf, & (wire_buf [start]), free_ptr - start);
 	free_ptr -= start;
@@ -662,21 +705,25 @@ ssize_t recv_RSP_packet_from_GDB (char *buf, const size_t buf_size)
     }
 
     // Debug:
-    if (DEBUG_recv_RSP_packet_from_GDB) {
-        fprint_bytes (logfile, "recv_RSP_packet_from_GDB:DBG: ", wire_buf, (free_ptr-1), "\n");
+    if (DEBUG_recv_RSP_packet_from_GDB && logfile) {
+	fprint_bytes (logfile, "recv_RSP_packet_from_GDB:DBG: ", wire_buf, (free_ptr-1), "\n");
     }
     // Check for ^C
     if (wire_buf [0] == control_C) {
 	if (buf_size < 2) {
-	    fprintf (logfile, "ERROR: gdbstub_fe.recv_RSP_packet_from_GDB: buf_size too small: %0zu\n", buf_size);
+	    if (logfile) {
+		fprintf (logfile, "ERROR: gdbstub_fe.recv_RSP_packet_from_GDB: buf_size too small: %0zu\n", buf_size);
+	    }
 	    return -1;
 	}
 
 	// Debug:
-        fprintf (logfile, "r \\x%02x\n", control_C);
-        if (DEBUG_recv_RSP_packet_from_GDB) {
-            fprintf (logfile, "recv_RSP_packet_from_GDB: returning ctrl+c\n");
-        }
+	if (logfile) {
+	    fprintf (logfile, "r \\x%02x\n", control_C);
+	    if (DEBUG_recv_RSP_packet_from_GDB) {
+		fprintf (logfile, "recv_RSP_packet_from_GDB: returning ctrl+c\n");
+	    }
+	}
 
 	// Discard the packet
 	memmove (wire_buf, & (wire_buf [1]), (free_ptr - 1));
@@ -708,7 +755,9 @@ ssize_t recv_RSP_packet_from_GDB (char *buf, const size_t buf_size)
     // We will send either a '+' or a '-' acknowledgement.
 
     // Debug:
-    fprint_packet (logfile, "r ", wire_buf, end + 3, "\n");
+    if (logfile) {
+	fprint_packet (logfile, "r ", wire_buf, end + 3, "\n");
+    }
 
     // Compute the checksum of the received chars
     uint8_t computed_checksum = gdb_checksum (& (wire_buf [1]), (end - 1));
@@ -724,10 +773,12 @@ ssize_t recv_RSP_packet_from_GDB (char *buf, const size_t buf_size)
 	// checksum failed
 	ack_char = '-';
 	ret = -1;
-	fprintf (logfile,
-		 "ERROR: gdbstub_fe.recv_RSP_packet_from_GDB: computed checksum 0x%02x; received checksum 0x%02x\n",
-		 computed_checksum,
-		 received_checksum);
+	if (logfile) {
+	    fprintf (logfile,
+		     "ERROR: gdbstub_fe.recv_RSP_packet_from_GDB: computed checksum 0x%02x; received checksum 0x%02x\n",
+		     computed_checksum,
+		     received_checksum);
+	}
     }
     else {
 	// checksum passed
@@ -927,8 +978,10 @@ void handle_RSP_G_write_all_registers (const char *buf, const size_t buf_len)
 
     // Check that the packet has the right number of hex digits for all the regs
     if (buf_len != 33 * num_ASCII_hex_digits) {
-	fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_G_write_all_registers (): invalid buf_len (%0zu)\n", buf_len);
-	fprintf (logfile, "    Expecting exactly 33 x %0zu hex digits\n", num_ASCII_hex_digits);
+	if (logfile) {
+	    fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_G_write_all_registers (): invalid buf_len (%0zu)\n", buf_len);
+	    fprintf (logfile, "    Expecting exactly 33 x %0zu hex digits\n", num_ASCII_hex_digits);
+	}
 	goto error_response;
     }
 
@@ -937,8 +990,10 @@ void handle_RSP_G_write_all_registers (const char *buf, const size_t buf_len)
     for (j = 0; j < 32; j++) {
 	status = hex16_to_val (& (buf [j * num_ASCII_hex_digits]), gdbstub_be_xlen, & (GPR_vals [j]));
 	if (status != status_ok) {
-	    fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_G_write_all_registers (): error parsing val for reg %0u\n",
-		     j);
+	    if (logfile) {
+		fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_G_write_all_registers (): error parsing val for reg %0u\n",
+			 j);
+	    }
 	    goto error_response;
 	}
     }
@@ -946,7 +1001,9 @@ void handle_RSP_G_write_all_registers (const char *buf, const size_t buf_len)
     // Parse the PC value
     status = hex16_to_val (& (buf [32 * num_ASCII_hex_digits]), gdbstub_be_xlen, & PC_val);
     if (status != status_ok) {
-	fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_G_write_all_registers (): error parsing val for PC\n");
+	if (logfile) {
+	    fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_G_write_all_registers (): error parsing val for PC\n");
+	}
 	goto error_response;
     }
 
@@ -954,8 +1011,10 @@ void handle_RSP_G_write_all_registers (const char *buf, const size_t buf_len)
     for (j = 0; j < 32; j++) {
 	status = gdbstub_be_GPR_write (gdbstub_be_xlen, j, GPR_vals [j]);
 	if (status != status_ok) {
-	    fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_G_write_all_registers (): error writing val for reg %0u\n",
-		     j);
+	    if (logfile) {
+		fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_G_write_all_registers (): error writing val for reg %0u\n",
+			 j);
+	    }
 	    goto error_response;
 	}
     }
@@ -963,7 +1022,9 @@ void handle_RSP_G_write_all_registers (const char *buf, const size_t buf_len)
     // Write PC to HW
     status = gdbstub_be_PC_write (gdbstub_be_xlen, PC_val);
     if (status != status_ok) {
-	fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_G_write_all_registers (): error writing val for PC\n");
+	if (logfile) {
+	    fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_G_write_all_registers (): error writing val for PC\n");
+	}
 	goto error_response;
     }
 
@@ -973,7 +1034,9 @@ void handle_RSP_G_write_all_registers (const char *buf, const size_t buf_len)
     send_OK_or_error_response (0);
 
  error_response:
-    fprint_bytes (logfile, "    buf: ", buf, buf_len-1, "\n");
+    if (logfile) {
+	fprint_bytes (logfile, "    buf: ", buf, buf_len-1, "\n");
+    }
     send_OK_or_error_response (0x01);
     return;
 }
@@ -989,7 +1052,9 @@ void handle_RSP_m_read_mem (const char *buf, const size_t buf_len)
     size_t length;
 
     if (2 != sscanf (buf, "m%" SCNx64 ",%zx", & addr, & length)) {
-	fprintf (logfile, "ERROR: gdbstub_fe.packet '$m...' packet from GDB: unable to parse addr, len\n");
+	if (logfile) {
+	    fprintf (logfile, "ERROR: gdbstub_fe.packet '$m...' packet from GDB: unable to parse addr, len\n");
+	}
 	send_OK_or_error_response (0x01);
 	return;
     }
@@ -1004,7 +1069,9 @@ void handle_RSP_m_read_mem (const char *buf, const size_t buf_len)
     // Get memory data from HW
     uint32_t status = gdbstub_be_mem_read (gdbstub_be_xlen, addr, buf_bin, length);
     if (status != status_ok) {
-	fprintf (logfile, "ERROR: gdbstub_fe.packet '$m...' packet from GDB: error reading HW memory\n");
+	if (logfile) {
+	    fprintf (logfile, "ERROR: gdbstub_fe.packet '$m...' packet from GDB: error reading HW memory\n");
+	}
 	send_OK_or_error_response (0x01);
 	return;
     }
@@ -1028,7 +1095,9 @@ handle_RSP_M_write_mem_hex_data (const char *buf, const size_t buf_len)
     size_t length;
 
     if (2 != sscanf (buf, "M%" SCNx64 ",%zx", & addr, & length)) {
-	fprintf (logfile, "ERROR: gdbstub_fe: packet '$M...' packet from GDB: unable to parse addr, len\n");
+	if (logfile) {
+	    fprintf (logfile, "ERROR: gdbstub_fe: packet '$M...' packet from GDB: unable to parse addr, len\n");
+	}
 	send_OK_or_error_response (0x01);
 	return;
     }
@@ -1036,8 +1105,10 @@ handle_RSP_M_write_mem_hex_data (const char *buf, const size_t buf_len)
     // Find ':' separating length from bin data
     char *p = memchr (buf, ':', buf_len);
     if (p == NULL) {
-	fprintf (logfile, "ERROR: gdbstub_fe: packet '$M addr, len ...' packet from GDB: no ':' following len\n");
-	fprintf (logfile, "    addr = 0x%0" PRIx64 ", len = 0x%0" PRIx64 "\n", addr, length);
+	if (logfile) {
+	    fprintf (logfile, "ERROR: gdbstub_fe: packet '$M addr, len ...' packet from GDB: no ':' following len\n");
+	    fprintf (logfile, "    addr = 0x%0" PRIx64 ", len = 0x%0" PRIx64 "\n", addr, length);
+	}
 	send_OK_or_error_response (0x01);
 	return;
     }
@@ -1045,11 +1116,13 @@ handle_RSP_M_write_mem_hex_data (const char *buf, const size_t buf_len)
     // Check that it has the correct number of hex digits
     size_t num_hex_data_digits = (buf_len - 1) - ((size_t) ((p + 1) - buf));
     if (num_hex_data_digits != (length * 2)) {
-	fprintf (logfile,
-		 "ERROR: gdbstub_fe.packet '$M addr, len: ...' packet from GDB: fewer than (len*2) hex digits\n");
-	fprintf (logfile, "    addr = 0x%0" PRIx64 ", len = 0x%0" PRIx64 "\n", addr, length);
-	fprintf (logfile, "    # of hex data digits = %0zu; len * 2 = 0x%0" PRId64 "\n",
-		 num_hex_data_digits, length * 2);
+	if (logfile) {
+	    fprintf (logfile,
+		     "ERROR: gdbstub_fe.packet '$M addr, len: ...' packet from GDB: fewer than (len*2) hex digits\n");
+	    fprintf (logfile, "    addr = 0x%0" PRIx64 ", len = 0x%0" PRIx64 "\n", addr, length);
+	    fprintf (logfile, "    # of hex data digits = %0zu; len * 2 = 0x%0" PRId64 "\n",
+		     num_hex_data_digits, length * 2);
+	}
 	send_OK_or_error_response (0x03);
 	return;
     }
@@ -1117,8 +1190,10 @@ void handle_RSP_p_read_register (const char *buf, const size_t buf_len)
 	}
     }
     else {
-	fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_p_read_register: unknown reg number: 0x%0x\n",
-		 regnum);
+	if (logfile) {
+	    fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_p_read_register: unknown reg number: 0x%0x\n",
+		     regnum);
+	}
 	send_OK_or_error_response (0x01);
 	return;
     }
@@ -1144,7 +1219,9 @@ void handle_RSP_P_write_register (const char *buf, const size_t buf_len)
 
     // Parse the regnum
     if (1 != sscanf (buf, "P%x", & regnum)) {
-	fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_P_write_register (): error parsing register num\n");
+	if (logfile) {
+	    fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_P_write_register (): error parsing register num\n");
+	}
 	status = 0x01;
 	goto done;
     }
@@ -1152,7 +1229,9 @@ void handle_RSP_P_write_register (const char *buf, const size_t buf_len)
     // Find and skip past '='
     char *p = memchr (buf, '=', buf_len);
     if (p == NULL) {
-	fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_P_write_register (): no '=' after register num\n");
+	if (logfile) {
+	    fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_P_write_register (): no '=' after register num\n");
+	}
 	status = 0x01;
 	goto done;
     }
@@ -1161,8 +1240,10 @@ void handle_RSP_P_write_register (const char *buf, const size_t buf_len)
     // Parse the register value
     status = hex16_to_val (p, gdbstub_be_xlen, & regval);
     if (status != status_ok) {
-	fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_P_write_register (): error parsing value for register %0d\n",
-		 regnum);
+	if (logfile) {
+	    fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_P_write_register (): error parsing value for register %0d\n",
+		     regnum);
+	}
 	status = 0x01;
 	goto done;
     }
@@ -1187,7 +1268,7 @@ void handle_RSP_P_write_register (const char *buf, const size_t buf_len)
 	status = 01;
 
  done:
-    if (status != status_ok) {
+    if ((status != status_ok) && logfile) {
 	fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_P_write_register: gdbstub_be write error\n");
 	fprintf (logfile, "    regnum 0x%0x, regval 0x%0" PRIx64 "\n", regnum, regval);
     }
@@ -1256,7 +1337,9 @@ handle_RSP_qRcmd (const char *buf, const size_t buf_len)
 
     else {
 	// Unrecognized command
-	// fprintf (logfile, "Monitor command not recognized\n");
+	// if (logfile) {
+	//     fprintf (logfile, "Monitor command not recognized\n");
+	// }
 	send_RSP_packet_to_GDB ("", 0);
 	return;
     }
@@ -1303,8 +1386,10 @@ handle_RSP_q (const char *buf, const size_t buf_len)
     }
 
     else {
-	fprintf (logfile, "WARNING: gdbstub_fe.handle_RSP_q: Unrecognized packet (%0zu chars): ", buf_len - 1);
-	fprint_bytes (logfile, "", buf, buf_len - 1, "\n");
+	if (logfile) {
+	    fprintf (logfile, "WARNING: gdbstub_fe.handle_RSP_q: Unrecognized packet (%0zu chars): ", buf_len - 1);
+	    fprint_bytes (logfile, "", buf, buf_len - 1, "\n");
+	}
 
 	char response [] = "";
 	send_RSP_packet_to_GDB (response, strlen (response));
@@ -1363,7 +1448,9 @@ handle_RSP_X_write_mem_bin_data (const char *buf, const size_t buf_len)
     uint64_t addr, length;
 
     if (2 != sscanf (buf, "X%" SCNx64 ",%" SCNx64 "", & addr, & length)) {
-	fprintf (logfile, "ERROR: gdbstub_fe.packet '$X...' packet from GDB: unable to parse addr, len\n");
+	if (logfile) {
+	    fprintf (logfile, "ERROR: gdbstub_fe.packet '$X...' packet from GDB: unable to parse addr, len\n");
+	}
 	send_OK_or_error_response (0x01);
 	return;
     }
@@ -1371,18 +1458,22 @@ handle_RSP_X_write_mem_bin_data (const char *buf, const size_t buf_len)
     // Find ':' separating length from bin data
     char *p = memchr (buf, ':', buf_len);
     if (p == NULL) {
-	fprintf (logfile, "ERROR: gdbstub_fe.packet '$X addr, len ...' packet from GDB: no ':' following len\n");
-	fprintf (logfile, "    addr = 0x%0" PRIx64 ", len = 0x%0" PRIx64 "\n", addr, length);
+	if (logfile) {
+	    fprintf (logfile, "ERROR: gdbstub_fe.packet '$X addr, len ...' packet from GDB: no ':' following len\n");
+	    fprintf (logfile, "    addr = 0x%0" PRIx64 ", len = 0x%0" PRIx64 "\n", addr, length);
+	}
 	send_OK_or_error_response (0x01);
 	return;
     }
     // Check that packet has 'length' data bytes
     size_t num_bin_data_bytes = (buf_len - 1) - ((size_t) ((p + 1) - buf));
     if (num_bin_data_bytes != length) {
-	fprintf (logfile,
-		 "ERROR: gdbstub_fe.packet '$X addr, len: ...' packet from GDB: fewer than len binary data bytes\n");
-	fprintf (logfile, "    addr = 0x%0" PRIx64 ", len = 0x%0" PRIx64 "\n", addr, length);
-	fprintf (logfile, "    # of binary data data bytes = %0zu\n", num_bin_data_bytes);
+	if (logfile) {
+	    fprintf (logfile,
+		     "ERROR: gdbstub_fe.packet '$X addr, len: ...' packet from GDB: fewer than len binary data bytes\n");
+	    fprintf (logfile, "    addr = 0x%0" PRIx64 ", len = 0x%0" PRIx64 "\n", addr, length);
+	    fprintf (logfile, "    # of binary data data bytes = %0zu\n", num_bin_data_bytes);
+	}
 	send_OK_or_error_response (0x03);
 	return;
     }
@@ -1404,28 +1495,38 @@ void *main_gdbstub (void *arg)
     gdb_fd  = params->gdb_fd;
     logfile = params->logfile;
 
-    fprintf (logfile, "main_gdbstub: for RV%0d\n", gdbstub_be_xlen);
+    if (logfile) {
+	fprintf (logfile, "main_gdbstub: for RV%0d\n", gdbstub_be_xlen);
+    }
     if ((gdbstub_be_xlen != 32) && (gdbstub_be_xlen != 64)) {
-	fprintf (logfile, "ERROR: gdbstub_fe.main_gdbstub: invalid RVnn; nn should be 32 or 64 only\n");
+	if (logfile) {
+	    fprintf (logfile, "ERROR: gdbstub_fe.main_gdbstub: invalid RVnn; nn should be 32 or 64 only\n");
+	}
 	goto done;
     }
 
     char gdb_rsp_pkt_buf [GDB_RSP_PKT_BUF_MAX];
 
-    fprintf (logfile, "gdbstub v2.0\n");
-    fflush (logfile);
+    if (logfile) {
+	fprintf (logfile, "gdbstub v2.0\n");
+	fflush (logfile);
+    }
 
     // Initialize the gdbstub_be
     uint32_t status = gdbstub_be_init (logfile);
     if (status != status_ok) {
-	fprintf (logfile, "ERROR: gdbstub_fe.main_gdbstub: error in gdbstub_be_startup\n");
+	if (logfile) {
+	    fprintf (logfile, "ERROR: gdbstub_fe.main_gdbstub: error in gdbstub_be_startup\n");
+	}
 	goto done;
     }
 
     // Receive initial '+' from GDB
     char ch = recv_ack_nak ();
     if (ch != '+') {
-	fprintf (logfile, "ERROR: gdbstub_fe.main_gdbstub: Expecting initial '+', but received %c from GDB\n", ch);
+	if (logfile) {
+	    fprintf (logfile, "ERROR: gdbstub_fe.main_gdbstub: Expecting initial '+', but received %c from GDB\n", ch);
+	}
 	goto done;
     }
 
@@ -1456,7 +1557,9 @@ void *main_gdbstub (void *arg)
 	    else {
 		// HW has not stopped yet
 		assert (sr == -2);
-                //fprintf (logfile, "main_gdbstub: HW has not stopped yet.\n");
+		// if (logfile) {
+		//     fprintf (logfile, "main_gdbstub: HW has not stopped yet.\n");
+		// }
 	    }
 	}
 
@@ -1464,17 +1567,23 @@ void *main_gdbstub (void *arg)
 	ssize_t sn = recv_RSP_packet_from_GDB (gdb_rsp_pkt_buf, GDB_RSP_PKT_BUF_MAX);
 
 	if (sn < 0) {
-            fprintf (logfile, "ERROR: gdbstub_fe.on RSP Packet from GDB\n");
+	    if (logfile) {
+		fprintf (logfile, "ERROR: gdbstub_fe.on RSP Packet from GDB\n");
+	    }
             break;
         }
         else if (sn == 0) {
 	    // Complete packet not yet arrived from GDB
-	    //fprintf (logfile, "Complete packet not yet arrived from GDB\n");
+	    // if (logfile) {
+	    //     fprintf (logfile, "Complete packet not yet arrived from GDB\n");
+	    // }
 	    usleep (10);
 	    continue;
 	} else {
 	    size_t n = (size_t) sn;
-            // fprint_bytes (logfile, "RX from GDB: '", gdb_rsp_pkt_buf, n - 1, "'\n");
+	    // if (logfile) {
+	    //     fprint_bytes (logfile, "RX from GDB: '", gdb_rsp_pkt_buf, n - 1, "'\n");
+	    // }
 	    if (gdb_rsp_pkt_buf [0] == control_C) {
                 handle_RSP_control_C (gdb_rsp_pkt_buf, n);
             }
@@ -1515,8 +1624,10 @@ void *main_gdbstub (void *arg)
                 handle_RSP_X_write_mem_bin_data (gdb_rsp_pkt_buf, n);
             }
             else {
-                fprintf (logfile, "WARNING: gdbstub_fe.main_gdbstub: Unrecognized packet (%0zu chars): ", n - 1);
-                fprint_bytes (logfile, "", gdb_rsp_pkt_buf, n - 1, "\n");
+		if (logfile) {
+		    fprintf (logfile, "WARNING: gdbstub_fe.main_gdbstub: Unrecognized packet (%0zu chars): ", n - 1);
+		    fprint_bytes (logfile, "", gdb_rsp_pkt_buf, n - 1, "\n");
+		}
 
                 send_RSP_packet_to_GDB ("", 0);
             }
@@ -1524,7 +1635,9 @@ void *main_gdbstub (void *arg)
     }
 
 done:
-    fclose (logfile);
+    if (logfile) {
+	fclose (logfile);
+    }
     close (gdb_fd);
     return NULL;
 }
