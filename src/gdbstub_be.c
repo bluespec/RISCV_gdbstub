@@ -50,6 +50,8 @@
 
 static int verbosity = 1;
 
+static bool in_elf_load = false;
+
 static bool initialized = false;
 
 static FILE *logfile_fp = NULL;
@@ -834,10 +836,12 @@ uint32_t gdbstub_be_elf_load (const char *elf_filename)
     // Write ELF file contents to memory
     // Note: this could be done using DMA
     clock_gettime (CLOCK_REALTIME, & timespec1);
+    in_elf_load = true;
     uint32_t status = gdbstub_be_mem_write (gdbstub_be_xlen,
 					    features.min_addr,
 					    & (features.mem_buf [features.min_addr]),
 					    n_bytes);
+    in_elf_load = false;
     clock_gettime (CLOCK_REALTIME, & timespec2);
     uint64_t time1 = ((uint64_t) timespec1.tv_sec) * 1000000000 + ((uint64_t) timespec1.tv_nsec);
     uint64_t time2 = ((uint64_t) timespec2.tv_sec) * 1000000000 + ((uint64_t) timespec2.tv_nsec);
@@ -1878,7 +1882,7 @@ uint32_t  gdbstub_be_mem_write (const uint8_t   xlen,
 	    }
 
 	// Show progress every 1 MB
-	if ((addr4 & 0xFFFFF) == 0)
+	if (in_elf_load && ((addr4 & 0xFFFFF) == 0))
 	    fprintf (stdout,
 		     "    ... mem [0x%08" PRIx64 "] <= 0x%08x\n",
 		     addr4, x);
