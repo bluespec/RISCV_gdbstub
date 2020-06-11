@@ -30,6 +30,7 @@
 // gdbstub globals
 
 static int   gdb_fd;
+static int   stop_fd;
 static FILE *logfile;
 static int   verbosity = 0;
 
@@ -632,6 +633,7 @@ uint32_t send_RSP_packet_to_GDB (const char *buf, const size_t buf_len)
 //          Includes trailing 0 byte that we add.
 //      0 if we have received nothing or an as-yet incomplete packet
 //     -1 on error or EOF
+//     -2 on stop request
 
 #define DEBUG_recv_RSP_packet_from_GDB false
 static
@@ -647,10 +649,30 @@ ssize_t recv_RSP_packet_from_GDB (char *buf, const size_t buf_size)
 
     ssize_t n;
 
-    struct pollfd fds [1];
-    fds[0].fd = gdb_fd;
-    fds[0].events = POLLIN;
-    if (poll(fds, 1, 1) > 0) {
+    fd_set rfds, wfds, efds;
+
+    FD_ZERO(&rfds);
+    FD_ZERO(&wfds);
+    FD_ZERO(&efds);
+
+    FD_SET(gdb_fd, &rfds);
+    int fd_max = gdb_fd;
+    if (stop_fd > 0) {
+	FD_SET(stop_fd, &rfds);
+	if (stop_fd > fd_max) {
+	    fd_max = stop_fd;
+	}
+    }
+
+    int timeout = 1; // ms
+    struct timeval tv;
+    tv.tv_sec = timeout / 1000;
+    tv.tv_usec = (timeout % 1000) * 1000;
+
+    if (select(fd_max + 1, &rfds, &wfds, &efds, &tv) > 0) {
+	if (stop_fd >= 0 && FD_ISSET(stop_fd, &rfds)) {
+	    return -2;
+	}
 	n = read (gdb_fd, & (wire_buf [free_ptr]), (GDB_RSP_WIRE_BUF_MAX - free_ptr));
 	if (n < 0) {
 	    if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
@@ -1492,8 +1514,9 @@ handle_RSP_X_write_mem_bin_data (const char *buf, const size_t buf_len)
 void *main_gdbstub (void *arg)
 {
     Gdbstub_FE_Params *params = (Gdbstub_FE_Params *) arg;
-    gdb_fd  = params->gdb_fd;
     logfile = params->logfile;
+    gdb_fd  = params->gdb_fd;
+    stop_fd = params->stop_fd;
 
     if (logfile) {
 	fprintf (logfile, "main_gdbstub: for RV%0d\n", gdbstub_be_xlen);
@@ -1566,7 +1589,12 @@ void *main_gdbstub (void *arg)
 	// Receive RSP packet from GDB and despatch to appropriate handler
 	ssize_t sn = recv_RSP_packet_from_GDB (gdb_rsp_pkt_buf, GDB_RSP_PKT_BUF_MAX);
 
-	if (sn < 0) {
+	if (sn == -2) {
+	    if (logfile) {
+		fprintf (logfile, "gdbstub_fe.main_gdbstub: stopping as requested\n");
+	    }
+	    break;
+	} else if (sn < 0) {
 	    if (logfile) {
 		fprintf (logfile, "ERROR: gdbstub_fe.on RSP Packet from GDB\n");
 	    }
@@ -1637,6 +1665,9 @@ void *main_gdbstub (void *arg)
 done:
     if (logfile) {
 	fclose (logfile);
+    }
+    if (stop_fd >= 0) {
+	close (stop_fd);
     }
     close (gdb_fd);
     return NULL;

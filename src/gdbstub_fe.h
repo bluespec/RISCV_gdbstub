@@ -21,6 +21,10 @@ typedef struct {
     // File descriptor for read/write of RSP messages from/to GDB
     int   gdb_fd;
 
+    // Optional file descriptor for stopping GDB server; stops when
+    // a byte can be read. Use -1 to disable.
+    int   stop_fd;
+
 } Gdbstub_FE_Params;
 
 // ================================================================
