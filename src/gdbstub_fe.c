@@ -875,7 +875,7 @@ static
 void handle_RSP_stop_reason (const char *buf, const size_t buf_len)
 {
     uint8_t stop_reason;
-    int32_t sr = gdbstub_be_get_stop_reason (gdbstub_be_xlen, & stop_reason);
+    int32_t sr = gdbstub_be_get_stop_reason (gdbstub_be_xlen, & stop_reason, false);
     if (sr == 0) {
         send_stop_reason (stop_reason);
         waiting_for_stop_reason = false;
@@ -1561,7 +1561,7 @@ void *main_gdbstub (void *arg)
             // give enough time for the continue command to start the CPU
             usleep (10);
 	    uint8_t stop_reason;
-	    int sr = gdbstub_be_get_stop_reason (gdbstub_be_xlen, & stop_reason);
+	    int sr = gdbstub_be_get_stop_reason (gdbstub_be_xlen, & stop_reason, true);
 	    if (sr == 0) {
 		send_stop_reason (stop_reason);
 		waiting_for_stop_reason = false;
@@ -1673,6 +1673,26 @@ done:
     }
     close (gdb_fd);
     return NULL;
+}
+
+bool gdbstub_be_poll_preempt (bool include_commands)
+{
+    struct pollfd fds[2];
+    int nfds = 0;
+
+    if (include_commands) {
+	fds[nfds].fd = gdb_fd;
+	fds[nfds].events = POLLIN | POLLHUP;
+	++nfds;
+    }
+
+    if (stop_fd >= 0) {
+	fds[nfds].fd = stop_fd;
+	fds[nfds].events = POLLIN;
+	++nfds;
+    }
+
+    return poll (fds, nfds, 0) > 0;
 }
 
 // ================================================================
