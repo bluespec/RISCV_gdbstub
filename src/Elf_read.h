@@ -7,8 +7,8 @@
 // Features of the ELF binary
 
 typedef struct {
-    uint8_t  *mem_buf;
-    int       bitwidth;
+    char     *mem_buf;
+    uint8_t   bitwidth;
     uint64_t  min_addr;
     uint64_t  max_addr;
 
