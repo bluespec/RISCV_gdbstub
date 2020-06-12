@@ -80,7 +80,8 @@ static
 uint32_t poll_dmstatus (char      *dbg_string,
 			uint32_t   mask,
 			uint32_t   value,
-			uint32_t  *p_dmstatus)
+			uint32_t  *p_dmstatus,
+			bool       commands_preempt)
 {
     uint32_t usecs = 0;
 
@@ -106,6 +107,16 @@ uint32_t poll_dmstatus (char      *dbg_string,
 			 "    %s: polling dmstatus: busy (%d usecs)\n",
 			 dbg_string, usecs);
 	    }
+
+	if (gdbstub_be_poll_preempt (commands_preempt)) {
+	    if (logfile_fp != NULL) {
+	      fprintf (logfile_fp,
+		       "    %s: polled dmstatus %0d usecs; mask 0x%0x, value 0x%0x; preempted\n",
+		       dbg_string, usecs, mask, value);
+	    }
+	    return status_err;
+	}
+
 	usleep (1);
 	usecs += 1;
     }
@@ -147,6 +158,16 @@ uint32_t poll_abstractcs_until_notbusy (char      *dbg_string,
 			 "    %s: polling abstractcs: busy (%d usecs)\n",
 			 dbg_string, usecs);
 	    }
+
+	if (gdbstub_be_poll_preempt (false)) {
+	    if (logfile_fp != NULL) {
+		fprintf (logfile_fp,
+			 "    %s: polling abstractcs: preempted (%d usecs)\n",
+			 dbg_string, usecs);
+	    }
+	    return status_err;
+	}
+
 	usleep (1);
 	usecs += 1;
     }
@@ -207,6 +228,15 @@ uint32_t  gdbstub_be_wait_for_sb_nonbusy (uint32_t  *p_sbcs)
 	    }
 	    return status_err;
 	}
+
+	if (gdbstub_be_poll_preempt (false)) {
+	    if (logfile_fp != NULL) {
+		fprintf (logfile_fp,
+			 "gdbstub_be_wait_for_sb_nonbusy: preempted (%0d usecs)\n", usecs);
+	    }
+	    return status_err;
+	}
+
 	usleep (1);
 	usecs += 1;
     }
@@ -750,7 +780,7 @@ uint32_t  gdbstub_be_ndm_reset (const uint8_t xlen, bool haltreq)
 
     // Poll dmstatus until '(! anyunavail)'
     uint32_t dmstatus;
-    poll_dmstatus ("gdbstub_be_ndm_reset", DMSTATUS_ANYUNAVAIL, 0, & dmstatus);
+    poll_dmstatus ("gdbstub_be_ndm_reset", DMSTATUS_ANYUNAVAIL, 0, & dmstatus, false);
 
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp,"    gdbstub_be_ndm_reset: dmstatus = 0x%0x\n", dmstatus);
@@ -796,7 +826,7 @@ uint32_t  gdbstub_be_hart_reset (const uint8_t xlen, bool haltreq)
 
     // Poll dmstatus until '(! anyhavereset)'
     uint32_t dmstatus;
-    poll_dmstatus ("gdbstub_be_hart_reset", DMSTATUS_ANYHAVERESET, 0, & dmstatus);
+    poll_dmstatus ("gdbstub_be_hart_reset", DMSTATUS_ANYHAVERESET, 0, & dmstatus, false);
 
     return status_ok;
 }
@@ -1094,7 +1124,7 @@ uint32_t  gdbstub_be_step (const uint8_t xlen)
 	fflush (logfile_fp);
     }
     uint32_t dmstatus;
-    poll_dmstatus ("gdbstub_be_stop", DMSTATUS_ALLHALTED, DMSTATUS_ALLHALTED, & dmstatus);
+    poll_dmstatus ("gdbstub_be_stop", DMSTATUS_ALLHALTED, DMSTATUS_ALLHALTED, & dmstatus, false);
 
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp, "gdbstub_be_step () => ok\n");
@@ -1131,7 +1161,7 @@ uint32_t  gdbstub_be_stop (const uint8_t xlen)
 
     // Poll dmstatus until 'allhalted'
     uint32_t dmstatus;
-    poll_dmstatus ("gdbstub_be_stop", DMSTATUS_ALLHALTED, DMSTATUS_ALLHALTED, & dmstatus);
+    poll_dmstatus ("gdbstub_be_stop", DMSTATUS_ALLHALTED, DMSTATUS_ALLHALTED, & dmstatus, false);
 
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp, "gdbstub_be_stop () => ok\n");
@@ -1145,7 +1175,9 @@ uint32_t  gdbstub_be_stop (const uint8_t xlen)
 // Get stop-reason from HW
 // (HW normally stops due to GDB ^C, after a 'step', or at a breakpoint)
 
-int32_t  gdbstub_be_get_stop_reason (const uint8_t xlen, uint8_t *p_stop_reason)
+int32_t  gdbstub_be_get_stop_reason (const uint8_t  xlen,
+				     uint8_t       *p_stop_reason,
+				     bool           commands_preempt)
 {
     if (! initialized) return status_ok;
 
@@ -1162,7 +1194,7 @@ int32_t  gdbstub_be_get_stop_reason (const uint8_t xlen, uint8_t *p_stop_reason)
     }
     // Poll dmstatus until 'allhalted'
     uint32_t dmstatus;
-    poll_dmstatus ("gdbstub_be_get_stop_reason", DMSTATUS_ALLHALTED, DMSTATUS_ALLHALTED, & dmstatus);
+    poll_dmstatus ("gdbstub_be_get_stop_reason", DMSTATUS_ALLHALTED, DMSTATUS_ALLHALTED, & dmstatus, commands_preempt);
 
     if (! (dmstatus & DMSTATUS_ALLHALTED)) {
 	// Still running

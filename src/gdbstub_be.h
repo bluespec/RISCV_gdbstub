@@ -98,7 +98,9 @@ uint32_t  gdbstub_be_stop (const uint8_t xlen);
 // (HW normally stops due to GDB ^C, after a 'step', or at a breakpoint)
 
 extern
-int32_t  gdbstub_be_get_stop_reason (const uint8_t xlen, uint8_t *p_stop_reason);
+int32_t  gdbstub_be_get_stop_reason (const uint8_t  xlen,
+				     uint8_t       *p_stop_reason,
+				     bool           commands_preempt);
 
 // ================================================================
 // This is not a debugger function at all, just an aid for humans
@@ -209,5 +211,8 @@ uint32_t  gdbstub_be_dmi_read (uint16_t dmi_addr, uint32_t *p_data);
 
 extern
 uint32_t  gdbstub_be_dmi_write (uint16_t dmi_addr, uint32_t dmi_data);
+
+extern
+bool  gdbstub_be_poll_preempt (bool include_commands);
 
 // ================================================================
