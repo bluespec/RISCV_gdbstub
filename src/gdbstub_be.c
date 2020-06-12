@@ -568,9 +568,14 @@ uint32_t  gdbstub_be_init (FILE *logfile, bool autoclose)
     logfile_fp        = logfile;
     autoclose_logfile = autoclose;
 
+    initialized = true;
+
+    uint32_t status = gdbstub_be_stop (gdbstub_be_xlen);
+    if (status != status_ok) goto err;
+
     uint64_t dcsr64;
     uint8_t  cmderr;
-    uint32_t status = gdbstub_be_reg_read (gdbstub_be_xlen, csr_addr_dcsr, & dcsr64, & cmderr);
+    status = gdbstub_be_reg_read (gdbstub_be_xlen, csr_addr_dcsr, & dcsr64, & cmderr);
     if (status != status_ok) goto err;
 
     // Set ebreakm/ebreaks/ebreaku
@@ -592,11 +597,11 @@ uint32_t  gdbstub_be_init (FILE *logfile, bool autoclose)
     status = gdbstub_be_reg_write (gdbstub_be_xlen, csr_addr_dcsr, dcsr, & cmderr);
     if (status != status_ok) goto err;
 
-    initialized = true;
-
     return status_ok;
 
 err:
+    initialized = false;
+
     if (autoclose_logfile && (logfile_fp != NULL))
 	fclose (logfile_fp);
 
