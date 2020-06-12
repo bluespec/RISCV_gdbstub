@@ -1678,7 +1678,7 @@ done:
 bool gdbstub_be_poll_preempt (bool include_commands)
 {
     struct pollfd fds[2];
-    int nfds = 0;
+    nfds_t nfds = 0;
 
     if (include_commands) {
 	fds[nfds].fd = gdb_fd;
