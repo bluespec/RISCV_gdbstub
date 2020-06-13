@@ -1454,6 +1454,46 @@ uint32_t  gdbstub_be_CSR_read (const uint8_t xlen, uint16_t regnum, uint64_t *p_
 }
 
 // ================================================================
+// Read a value from PRIV
+
+uint32_t  gdbstub_be_PRIV_read (const uint8_t xlen, uint64_t *p_PRIV)
+{
+    *p_PRIV = 0;
+    if (! initialized) return status_ok;
+
+    if (logfile_fp != NULL) {
+	fprintf (logfile_fp, "gdbstub_be_PRIV_read\n");
+	fflush (logfile_fp);
+    }
+
+    // PRIV is a virtual register aliasing dcsr.prv
+    uint64_t dcsr64;
+    uint8_t  cmderr;
+    uint32_t status = gdbstub_be_reg_read (xlen, csr_addr_dcsr, &dcsr64, & cmderr);
+
+    if (status == status_err) {
+	if (logfile_fp != NULL) {
+	    fprintf (logfile_fp,
+		     "    ERROR: gdbstub_be_PRIV_read");
+	    fprint_abstractcs_cmderr (logfile_fp, " => ", cmderr, "\n");
+	    fflush (logfile_fp);
+	}
+    }
+    else {
+	uint32_t dcsr = (uint32_t) dcsr64;
+	*p_PRIV = fn_dcsr_prv (dcsr);
+	if (logfile_fp != NULL) {
+	    fprintf (logfile_fp,
+		     "    gdbstub_be_PRIV_read => 0x%0" PRIx64 "\n",
+		     *p_PRIV);
+	    fflush (logfile_fp);
+	}
+    }
+
+    return status;
+}
+
+// ================================================================
 // Read one byte from SoC memory at address 'addr' into 'data'
 
 uint32_t  gdbstub_be_mem_read_subword (const uint8_t   xlen,
@@ -1795,6 +1835,63 @@ uint32_t  gdbstub_be_CSR_write (const uint8_t xlen, uint16_t regnum, uint64_t re
 	    fprintf (logfile_fp,
 		     "    ERROR: gdbstub_be_CSR_write (csr 0x%0x)",
 		     regnum);
+	    fprint_abstractcs_cmderr (logfile_fp, " => ", cmderr, "\n");
+	    fflush (logfile_fp);
+	}
+    }
+
+    return status;
+}
+
+// ================================================================
+// Write a value into the RISC-V PRIV register
+
+uint32_t  gdbstub_be_PRIV_write (const uint8_t xlen, uint64_t regval)
+{
+    if (! initialized) return status_ok;
+
+    if (logfile_fp != NULL) {
+	fprintf (logfile_fp,
+		 "gdbstub_be_PRIV_write (data 0x%0" PRIx64 ")\n",
+		 regval);
+	fflush (logfile_fp);
+    }
+
+    // PRIV is a virtual register aliasing dcsr.prv
+    uint64_t dcsr64;
+    uint8_t  cmderr;
+    uint32_t status = gdbstub_be_reg_read (xlen, csr_addr_dcsr, &dcsr64, & cmderr);
+
+    if (status == status_err) {
+	if (logfile_fp != NULL) {
+	    fprintf (logfile_fp,
+		     "    ERROR: gdbstub_be_PRIV_write (read dcsr)");
+	    fprint_abstractcs_cmderr (logfile_fp, " => ", cmderr, "\n");
+	    fflush (logfile_fp);
+	}
+	return status;
+    }
+
+    uint32_t dcsr = (uint32_t) dcsr64;
+    dcsr = fn_mk_dcsr (fn_dcsr_xdebugver (dcsr),
+		       fn_dcsr_ebreakm (dcsr),
+		       fn_dcsr_ebreaks (dcsr),
+		       fn_dcsr_ebreaku (dcsr),
+		       fn_dcsr_stepie (dcsr),
+		       fn_dcsr_stopcount (dcsr),
+		       fn_dcsr_stoptime (dcsr),
+		       fn_dcsr_cause (dcsr),
+		       fn_dcsr_mprven (dcsr),
+		       fn_dcsr_nmip (dcsr),
+		       fn_dcsr_step (dcsr),
+		       (DM_DCSR_PRV) regval);
+
+    status = gdbstub_be_reg_write (xlen, csr_addr_dcsr, dcsr, & cmderr);
+
+    if (status == status_err) {
+	if (logfile_fp != NULL) {
+	    fprintf (logfile_fp,
+		     "    ERROR: gdbstub_be_PRIV_write (write dcsr)");
 	    fprint_abstractcs_cmderr (logfile_fp, " => ", cmderr, "\n");
 	    fflush (logfile_fp);
 	}

@@ -1164,6 +1164,7 @@ handle_RSP_M_write_mem_hex_data (const char *buf, const size_t buf_len)
 //       n = 0x20              for PC
 //       n = 0x21..0x40        for FPRs
 //       n = 0x41..0x41+0xFFF  for CSRs
+//       n = 0x1014            for PRIV
 
 static
 void handle_RSP_p_read_register (const char *buf, const size_t buf_len)
@@ -1206,6 +1207,13 @@ void handle_RSP_p_read_register (const char *buf, const size_t buf_len)
     else if ((0x41 <= regnum) && (regnum <= (0x41 + 0xFFF))) {
 	uint16_t csr_addr = (uint16_t) (regnum - 0x41);
 	uint32_t status = gdbstub_be_CSR_read (gdbstub_be_xlen, csr_addr, & value);
+	if (status != status_ok) {
+	    send_OK_or_error_response (status_err);
+	    return;
+	}
+    }
+    else if (regnum == 0x1041) {
+	uint32_t status = gdbstub_be_PRIV_read (gdbstub_be_xlen, & value);
 	if (status != status_ok) {
 	    send_OK_or_error_response (status_err);
 	    return;
@@ -1259,8 +1267,13 @@ void handle_RSP_P_write_register (const char *buf, const size_t buf_len)
     }
     p++;
 
+    uint8_t reglen = gdbstub_be_xlen;
+    // PRIV is a virtual 1-byte register
+    if (regnum == 0x1041)
+	reglen = 8;
+
     // Parse the register value
-    status = hex16_to_val (p, gdbstub_be_xlen, & regval);
+    status = hex16_to_val (p, reglen, & regval);
     if (status != status_ok) {
 	if (logfile) {
 	    fprintf (logfile, "ERROR: gdbstub_fe.handle_RSP_P_write_register (): error parsing value for register %0d\n",
@@ -1285,6 +1298,9 @@ void handle_RSP_P_write_register (const char *buf, const size_t buf_len)
     else if ((0x41 <= regnum) && (regnum <= (0x41 + 0xFFF))) {
 	uint16_t csr_addr = (uint16_t) (regnum - 0x41);
 	status = gdbstub_be_CSR_write (gdbstub_be_xlen, csr_addr, regval);
+    }
+    else if (regnum == 0x1041) {
+	status = gdbstub_be_PRIV_write (gdbstub_be_xlen, regval);
     }
     else
 	status = 01;

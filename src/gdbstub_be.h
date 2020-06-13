@@ -137,6 +137,12 @@ extern
 uint32_t  gdbstub_be_CSR_read (const uint8_t xlen, uint16_t regnum, uint64_t *p_regval);
 
 // ================================================================
+// Read a value from PRIV
+
+extern
+uint32_t  gdbstub_be_PRIV_read (const uint8_t xlen, uint64_t *p_PRIV);
+
+// ================================================================
 // Read 1, 2 or 4 bytes from SoC memory at address 'addr' into 'data'
 
 extern
@@ -178,6 +184,12 @@ uint32_t  gdbstub_be_FPR_write (const uint8_t xlen, uint8_t regnum, uint64_t reg
 
 extern
 uint32_t  gdbstub_be_CSR_write (const uint8_t xlen, uint16_t regnum, uint64_t regval);
+
+// ================================================================
+// Write a value into the RISC-V PRIV register
+
+extern
+uint32_t  gdbstub_be_PRIV_write (const uint8_t xlen, uint64_t regval);
 
 // ================================================================
 // Write 'len' bytes of 'data' into RISC-V system memory, starting at address 'addr'
