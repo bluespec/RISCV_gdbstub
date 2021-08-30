@@ -42,6 +42,8 @@ static int               gdbstub_stop_pipe [2];
 static
 void gdbstub_start_common (FILE *logfile, void *(*start_routine) (void *))
 {
+    fprintf (stdout, "--> %s\n", __FUNCTION__);
+
     pipe (gdbstub_stop_pipe);
     fcntl (gdbstub_stop_pipe [1], F_SETFL, O_NONBLOCK);
 
@@ -49,6 +51,7 @@ void gdbstub_start_common (FILE *logfile, void *(*start_routine) (void *))
     gdbstub_params.stop_fd = gdbstub_stop_pipe [0];
     gdbstub_params.autoclose_logfile_stop_fd = true;
 
+    fprintf (stdout, "    pthread_create ...\n");
     pthread_create (& gdbstub_thread, NULL, start_routine, & gdbstub_params);
     pthread_setname_np (gdbstub_thread, "gdbstub");
 }
@@ -60,6 +63,8 @@ void gdbstub_start_common (FILE *logfile, void *(*start_routine) (void *))
 static
 void *main_gdbstub_accept (void *arg)
 {
+    fprintf (stdout, "--> %s\n", __FUNCTION__);
+
     Gdbstub_FE_Params *params = (Gdbstub_FE_Params *) arg;
     FILE *logfile = params->logfile;
     int   sockfd  = params->gdb_fd;
@@ -144,6 +149,8 @@ void gdbstub_start_fd (FILE *logfile, int gdb_fd)
 
 int gdbstub_start_tcp (FILE *logfile, unsigned short port)
 {
+    fprintf (stdout, "--> %s: port %0d\n", __FUNCTION__, port);
+
     int sockfd, err;
     struct sockaddr_in sa;
     socklen_t salen;

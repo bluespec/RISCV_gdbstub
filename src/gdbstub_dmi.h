@@ -10,7 +10,7 @@
 // These should be filled in with the appropriate mechanisms that
 // perform the actual DMI read/write on the RISC-V Debug module.
 
-extern void      dmi_write (uint16_t addr, uint32_t data);
-extern uint32_t  dmi_read  (uint16_t addr);
+extern void      dmi_write (FILE *logfile_fp, uint16_t addr, uint32_t data);
+extern uint32_t  dmi_read  (FILE *logfile_fp, uint16_t addr);
 
 // ================================================================
