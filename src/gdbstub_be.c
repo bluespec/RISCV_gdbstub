@@ -59,8 +59,6 @@ static bool autoclose_logfile = false;
 
 static uint32_t orig_dcsr;
 
-#define LOGSTEP(s) if (logfile_fp != NULL) { fprintf (logfile_fp, s); fflush (logfile_fp); }
-
 // ================================================================
 // Run-mode
 
@@ -97,7 +95,7 @@ uint32_t poll_dmstatus (char      *dbg_string,
 	    }
 	    return status_err;
 	}
-	*p_dmstatus = dmi_read (logfile_fp, dm_addr_dmstatus);
+	*p_dmstatus = dmi_read (dm_addr_dmstatus);
 
 	if ((*p_dmstatus & mask) == value) {
 	    return status_ok;
@@ -148,7 +146,7 @@ uint32_t poll_abstractcs_until_notbusy (char      *dbg_string,
 	    return status_err;
 	}
 
-	*p_abstractcs = dmi_read (logfile_fp, dm_addr_abstractcs);
+	*p_abstractcs = dmi_read (dm_addr_abstractcs);
 
 	if (! fn_abstractcs_busy (*p_abstractcs)) {
 	    return status_ok;
@@ -199,7 +197,7 @@ uint8_t check_abstractcs_error (char* dbg_string, uint32_t abstractcs)
 		     "    %s : clear abstractcs cmderr\n", dbg_string);
 	}
 	abstractcs_no_err = fn_mk_abstractcs (DM_ABSTRACTCS_CMDERR_OTHER);
-	dmi_write (logfile_fp, dm_addr_abstractcs, abstractcs_no_err);
+	dmi_write (dm_addr_abstractcs, abstractcs_no_err);
     }
     return cmderr;
 }
@@ -215,30 +213,27 @@ uint32_t  gdbstub_be_wait_for_sb_nonbusy (uint32_t  *p_sbcs)
     uint32_t sbcs;
     bool     sbbusy;
     uint32_t usecs = 0;
-
-    LOGSTEP ("    --> gdbstub_be_wait_for_sb_nonbusy\n");
+    if (logfile_fp != NULL) {
+	fprintf (logfile_fp, "gdbstub_be_wait_for_sb_nonbusy\n");
+    }
     while (true) {
-	sbcs    = dmi_read (logfile_fp, dm_addr_sbcs);
+	sbcs    = dmi_read (dm_addr_sbcs);
 	sbbusy  = fn_sbcs_sbbusy (sbcs);
 	if (! sbbusy) break;
 
 	if (usecs > SB_TIMEOUT_USECS) {
 	    if (logfile_fp != NULL) {
 		fprintf (logfile_fp,
-			 "    gdbstub_be_wait_for_sb_nonbusy: TIMEOUT (> %0d usecs)\n",
-			 usecs);
+			 "gdbstub_be_wait_for_sb_nonbusy: TIMEOUT (> %0d usecs)\n", usecs);
 	    }
-	    LOGSTEP ("    <-- gdbstub_be_wait_for_sb_nonbusy\n");
 	    return status_err;
 	}
 
 	if (gdbstub_be_poll_preempt (false)) {
 	    if (logfile_fp != NULL) {
 		fprintf (logfile_fp,
-			 "    gdbstub_be_wait_for_sb_nonbusy: preempted (%0d usecs)\n",
-			 usecs);
+			 "gdbstub_be_wait_for_sb_nonbusy: preempted (%0d usecs)\n", usecs);
 	    }
-	    LOGSTEP ("    <-- gdbstub_be_wait_for_sb_nonbusy\n");
 	    return status_err;
 	}
 
@@ -253,7 +248,6 @@ uint32_t  gdbstub_be_wait_for_sb_nonbusy (uint32_t  *p_sbcs)
 	}
 
     if (p_sbcs != NULL) *p_sbcs = sbcs;
-    LOGSTEP ("    <-- gdbstub_be_wait_for_sb_nonbusy\n");
     return status_ok;
 }
 
@@ -288,7 +282,7 @@ uint32_t gdbstub_be_reg_read (const uint8_t xlen, uint16_t dm_regnum, uint64_t *
 						 true,     // transfer
 						 false,    // write
 						 dm_regnum);
-    dmi_write (logfile_fp, dm_addr_command, command);
+    dmi_write (dm_addr_command, command);
 
     // Poll abstractcs until not busy
     poll_abstractcs_until_notbusy ("gdbstub_be_reg_read", & abstractcs);
@@ -297,10 +291,10 @@ uint32_t gdbstub_be_reg_read (const uint8_t xlen, uint16_t dm_regnum, uint64_t *
 
     if (*p_cmderr == 0) {
 	// Read data0 register
-	data0 = dmi_read (logfile_fp, dm_addr_data0);
+	data0 = dmi_read (dm_addr_data0);
 	if (xlen == 64) {
 	    // Read upper 32 bits from data1
-	    data1 = dmi_read (logfile_fp, dm_addr_data1);
+	    data1 = dmi_read (dm_addr_data1);
 	    data1 = data1 << 32;
 	}
 	*p_regval = data1 | data0;
@@ -339,11 +333,11 @@ uint32_t  gdbstub_be_reg_write (const uint8_t xlen, uint16_t dm_regnum, uint64_t
     uint32_t abstractcs;
 
     // Write regval to dm_data0 register
-    dmi_write (logfile_fp, dm_addr_data0, (uint32_t) regval);
+    dmi_write (dm_addr_data0, (uint32_t) regval);
 
     if (xlen == 64) {
 	// Write upper bits of regval to dm_data1 register
-	dmi_write (logfile_fp, dm_addr_data1, (uint32_t) (regval >> 32));
+	dmi_write (dm_addr_data1, (uint32_t) (regval >> 32));
     }
 
     // Send command to do a register write
@@ -355,7 +349,7 @@ uint32_t  gdbstub_be_reg_write (const uint8_t xlen, uint16_t dm_regnum, uint64_t
 						 true,     // transfer
 						 true,     // write
 						 dm_regnum);
-    dmi_write (logfile_fp, dm_addr_command, command);
+    dmi_write (dm_addr_command, command);
 
     // Poll abstractcs until not busy
     poll_abstractcs_until_notbusy ("gdbstub_be_reg_write", & abstractcs);
@@ -405,7 +399,7 @@ uint32_t  gdbstub_be_mem32_read (const char *context,
     if (logfile_fp != NULL) {
 	fprint_sbcs (logfile_fp, "    Write ", sbcs, "\n");
     }
-    dmi_write (logfile_fp, dm_addr_sbcs, sbcs);
+    dmi_write (dm_addr_sbcs, sbcs);
 
     // Write the address to sbaddress1/0
     if (xlen == 64) {
@@ -413,18 +407,18 @@ uint32_t  gdbstub_be_mem32_read (const char *context,
 	if (logfile_fp != NULL) {
 	    fprintf (logfile_fp, "    Write to sbaddress1: 0x%08x\n", addr1);
 	}
-	dmi_write (logfile_fp, dm_addr_sbaddress1, addr1);
+	dmi_write (dm_addr_sbaddress1, addr1);
     }
     // Write lower 64b of the address to sbaddress0 (which will start a bus read)
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp, "    Write to sbaddress0: 0x%08x\n", addr0);
     }
-    dmi_write (logfile_fp, dm_addr_sbaddress0, addr0);
+    dmi_write (dm_addr_sbaddress0, addr0);
 
     // Read sbdata0
     status = gdbstub_be_wait_for_sb_nonbusy (NULL);
     if (status == status_err) return status;
-    uint32_t data = dmi_read (logfile_fp, dm_addr_sbdata0);
+    uint32_t data = dmi_read (dm_addr_sbdata0);
 
     /* debug */
     if (logfile_fp != NULL) {
@@ -468,7 +462,7 @@ uint32_t  gdbstub_be_mem32_write (const char *context,
 				false,                     // sbautoincrement
 				false,                     // sbreadondata
 				DM_SBERROR_UNDEF7_W1C);    // Clear sberror
-    dmi_write (logfile_fp, dm_addr_sbcs, sbcs);
+    dmi_write (dm_addr_sbcs, sbcs);
 
     // Write the address to sbaddress1/0
     status = gdbstub_be_wait_for_sb_nonbusy (NULL);
@@ -478,18 +472,18 @@ uint32_t  gdbstub_be_mem32_write (const char *context,
 	if (logfile_fp != NULL) {
 	    fprintf (logfile_fp, "    Write to sbaddress1: 0x%08x\n", addr1);
 	}
-	dmi_write (logfile_fp, dm_addr_sbaddress1, addr1);
+	dmi_write (dm_addr_sbaddress1, addr1);
     }
     // Write lower 64b of the address to sbaddress0 (which will start a bus read)
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp, "    Write to sbaddress0: 0x%08x\n", addr0);
     }
-    dmi_write (logfile_fp, dm_addr_sbaddress0, addr0);
+    dmi_write (dm_addr_sbaddress0, addr0);
 
     // Write data to sbdata0 (which writes through to mem)
     status = gdbstub_be_wait_for_sb_nonbusy (NULL);
     if (status == status_err) return status;
-    dmi_write (logfile_fp, dm_addr_sbdata0, data);
+    dmi_write (dm_addr_sbdata0, data);
 
     /* debug */
     if (logfile_fp != NULL) {
@@ -574,20 +568,17 @@ uint32_t  gdbstub_be_init (FILE *logfile, bool autoclose)
     logfile_fp        = logfile;
     autoclose_logfile = autoclose;
 
-    LOGSTEP ("--> gdbstub_be_init; stopping CPU\n");
-
     initialized = true;
 
     uint32_t status = gdbstub_be_stop (gdbstub_be_xlen);
     if (status != status_ok) goto err;
 
-    LOGSTEP ("    gdbstub_be_init; reading DCSR\n");
     uint64_t dcsr64;
     uint8_t  cmderr;
     status = gdbstub_be_reg_read (gdbstub_be_xlen, csr_addr_dcsr, & dcsr64, & cmderr);
     if (status != status_ok) goto err;
 
-    LOGSTEP ("    gdbstub_be_init; setting ebreakm/ebreaks/ebreaku\n");
+    // Set ebreakm/ebreaks/ebreaku
     uint32_t dcsr = (uint32_t) dcsr64;
     orig_dcsr = dcsr;
     dcsr = fn_mk_dcsr (fn_dcsr_xdebugver (dcsr),
@@ -602,10 +593,10 @@ uint32_t  gdbstub_be_init (FILE *logfile, bool autoclose)
 		       fn_dcsr_nmip (dcsr),
 		       fn_dcsr_step (dcsr),
 		       fn_dcsr_prv (dcsr));
+
     status = gdbstub_be_reg_write (gdbstub_be_xlen, csr_addr_dcsr, dcsr, & cmderr);
     if (status != status_ok) goto err;
 
-    LOGSTEP ("<-- gdbstub_be_init\n");
     return status_ok;
 
 err:
@@ -614,7 +605,6 @@ err:
     if (autoclose_logfile && (logfile_fp != NULL))
 	fclose (logfile_fp);
 
-    LOGSTEP ("<-- gdbstub_be_init\n");
     return status;
 }
 
@@ -624,8 +614,6 @@ err:
 uint32_t  gdbstub_be_final (const uint8_t xlen)
 {
     // Fill in whatever is needed as final actions
-
-    LOGSTEP ("--> gdbstub_be_final\n");
 
     uint64_t dcsr64;
     uint8_t  cmderr;
@@ -656,7 +644,6 @@ err:
     if (autoclose_logfile && (logfile_fp != NULL))
 	fclose (logfile_fp);
 
-    LOGSTEP ("<-- gdbstub_be_final\n");
     return status;
 }
 
@@ -690,7 +677,7 @@ uint32_t  gdbstub_be_dm_reset (const uint8_t xlen)
 			  "gdbstub_be_dm_reset: write ", dmcontrol, "\n");
 	fflush (logfile_fp);
     }
-    dmi_write (logfile_fp, dm_addr_dmcontrol, dmcontrol);
+    dmi_write (dm_addr_dmcontrol, dmcontrol);
 
     // Poll abstractcs until not busy, check for errors
     uint32_t abstractcs;
@@ -698,7 +685,7 @@ uint32_t  gdbstub_be_dm_reset (const uint8_t xlen)
     check_abstractcs_error ("gdbstub_be_dm_reset", abstractcs);
 
     // Readback dmstatus
-    uint32_t dmstatus = dmi_read (logfile_fp, dm_addr_dmstatus);
+    uint32_t dmstatus = dmi_read (dm_addr_dmstatus);
     if (logfile_fp != NULL) {
 	fprint_dmstatus (logfile_fp, "  dmstatus = {", dmstatus, "}\n");
 	fflush (logfile_fp);
@@ -775,7 +762,7 @@ uint32_t  gdbstub_be_ndm_reset (const uint8_t xlen, bool haltreq)
 			  "gdbstub_be_ndm_reset: write ", dmcontrol, "\n");
 	fflush (logfile_fp);
     }
-    dmi_write (logfile_fp, dm_addr_dmcontrol, dmcontrol);
+    dmi_write (dm_addr_dmcontrol, dmcontrol);
 
     // Deassert dmcontrol.ndmreset
     dmcontrol = fn_mk_dmcontrol (haltreq,
@@ -794,7 +781,7 @@ uint32_t  gdbstub_be_ndm_reset (const uint8_t xlen, bool haltreq)
 			  "gdbstub_be_ndm_reset: write ", dmcontrol, "\n");
 	fflush (logfile_fp);
     }
-    dmi_write (logfile_fp, dm_addr_dmcontrol, dmcontrol);
+    dmi_write (dm_addr_dmcontrol, dmcontrol);
 
     // Poll dmstatus until '(! anyunavail)'
     uint32_t dmstatus;
@@ -840,7 +827,7 @@ uint32_t  gdbstub_be_hart_reset (const uint8_t xlen, bool haltreq)
 			  "gdbstub_be_hart_reset: write ", dmcontrol, "\n");
 	fflush (logfile_fp);
     }
-    dmi_write (logfile_fp, dm_addr_dmcontrol, dmcontrol);
+    dmi_write (dm_addr_dmcontrol, dmcontrol);
 
     // Poll dmstatus until '(! anyhavereset)'
     uint32_t dmstatus;
@@ -862,7 +849,7 @@ uint32_t gdbstub_be_verbosity (uint32_t n)
 	fflush (logfile_fp);
     }
 
-    dmi_write (logfile_fp, dm_addr_verbosity, n);
+    dmi_write (dm_addr_verbosity, n);
     return  status_ok;
 
     /* TODO: transition to debug_module setup
@@ -981,7 +968,7 @@ uint32_t gdbstub_be_continue (const uint8_t xlen)
     uint8_t  cmderr;
 
     if (logfile_fp != NULL) {
-	fprintf (logfile_fp, "--> gdbstub_be_continue: read dcsr ...\n");
+	fprintf (logfile_fp, "gdbstub_be_continue: read dcsr ...\n");
 	fflush (logfile_fp);
     }
     uint32_t status = gdbstub_be_reg_read (xlen, csr_addr_dcsr, & dcsr64, & cmderr);
@@ -990,14 +977,14 @@ uint32_t gdbstub_be_continue (const uint8_t xlen)
     uint32_t dcsr = (uint32_t) dcsr64;
     if (logfile_fp != NULL) {
 	fprint_dcsr (logfile_fp,
-		     "    gdbstub_be_continue: read dcsr => ", dcsr, "\n");
+		     "gdbstub_be_continue: read dcsr => ", dcsr, "\n");
 	fflush (logfile_fp);
     }
 
     // If dcsr.step bit is set, clear it
     if (fn_dcsr_step (dcsr)) {
 	if (logfile_fp != NULL) {
-	    fprintf (logfile_fp, "    gdbstub_be_continue: clear single-step bit in dcsr\n");
+	    fprintf (logfile_fp, "gdbstub_be_continue: clear single-step bit in dcsr\n");
 	    fflush (logfile_fp);
 	}
 	dcsr = fn_mk_dcsr (fn_dcsr_xdebugver (dcsr),
@@ -1016,7 +1003,7 @@ uint32_t gdbstub_be_continue (const uint8_t xlen)
 	// Write back 'dcsr' register
 	if (logfile_fp != NULL) {
 	    fprint_dcsr (logfile_fp,
-			 "    gdbstub_be_continue: write reg ", dcsr, "\n");
+			 "gdbstub_be_continue: write reg ", dcsr, "\n");
 	    fflush (logfile_fp);
 	}
 	status = gdbstub_be_reg_write (xlen, csr_addr_dcsr, dcsr, & cmderr);
@@ -1038,15 +1025,15 @@ uint32_t gdbstub_be_continue (const uint8_t xlen)
 				 true);    // dmactive_N
     if (logfile_fp != NULL) {
 	fprint_dmcontrol (logfile_fp,
-			  "    gdbstub_be_continue: write ", dmcontrol, "\n");
+			  "gdbstub_be_continue: write ", dmcontrol, "\n");
 	fflush (logfile_fp);
     }
 
-    dmi_write (logfile_fp, dm_addr_dmcontrol, dmcontrol);
+    dmi_write (dm_addr_dmcontrol, dmcontrol);
 
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp,
-		 "    gdbstub_be_continue () => ok\n");
+		 "gdbstub_be_continue () => ok\n");
 	fflush (logfile_fp);
     }
     numHaltChecks = 0;
@@ -1068,8 +1055,10 @@ uint32_t  gdbstub_be_step (const uint8_t xlen)
     uint64_t dcsr64;
     uint8_t  cmderr;
 
-    LOGSTEP ("--> gdbstub_be_step: read dcsr\n");
-
+    if (logfile_fp != NULL) {
+	fprintf (logfile_fp, "gdbstub_be_step: read dcsr ...\n");
+	fflush (logfile_fp);
+    }
     uint32_t status = gdbstub_be_reg_read (xlen, csr_addr_dcsr, & dcsr64, & cmderr);
     if (status == status_err) return status_err;
 
@@ -1101,7 +1090,6 @@ uint32_t  gdbstub_be_step (const uint8_t xlen)
 			   fn_dcsr_prv (dcsr));
 
 	// Write back 'dcsr' register
-	LOGSTEP ("    gdbstub_be_step: clear dcsr.step; write dcsr\n");
 	if (logfile_fp != NULL) {
 	    fprint_dcsr (logfile_fp,
 			 "gdbstub_be_step: write reg ", dcsr, "\n");
@@ -1111,7 +1099,12 @@ uint32_t  gdbstub_be_step (const uint8_t xlen)
 	if (status == status_err) return status_err;
     }
 
-    LOGSTEP ("    gdbstub_be_step: set resumereq bit in dmcontrol\n");
+    // Write 'resumereq' to dmcontrol
+    if (logfile_fp != NULL) {
+	fprintf (logfile_fp,
+		 "gdbstub_be_step: set resumereq bit in dmcontrol\n");
+	fflush (logfile_fp);
+    }
     uint32_t dmcontrol = fn_mk_dmcontrol (false,    // haltreq
 					  true,     // resumereq
 					  false,    // hartreset
@@ -1128,15 +1121,21 @@ uint32_t  gdbstub_be_step (const uint8_t xlen)
 			  "gdbstub_be_step: write dmcontrol := ", dmcontrol, "\n");
 	fflush (logfile_fp);
     }
-    dmi_write (logfile_fp, dm_addr_dmcontrol, dmcontrol);
+    dmi_write (dm_addr_dmcontrol, dmcontrol);
 
-    LOGSTEP ("    gdbstub_be_step: polling dmstatus until 'allhalted'\n");
+    // Poll dmstatus until 'allhalted'
+    if (logfile_fp != NULL) {
+	fprintf (logfile_fp, "gdbstub_be_step: polling dmstatus until 'allhalted'\n");
+	fflush (logfile_fp);
+    }
     uint32_t dmstatus;
     poll_dmstatus ("gdbstub_be_stop", DMSTATUS_ALLHALTED, DMSTATUS_ALLHALTED, & dmstatus, false);
 
+    if (logfile_fp != NULL) {
+	fprintf (logfile_fp, "gdbstub_be_step () => ok\n");
+	fflush (logfile_fp);
+    }
     run_mode = PAUSED;
-
-    LOGSTEP ("<-- gdbstub_be_step => ok\n");
     return status_ok;
 }
 
@@ -1146,8 +1145,6 @@ uint32_t  gdbstub_be_step (const uint8_t xlen)
 uint32_t  gdbstub_be_stop (const uint8_t xlen)
 {
     if (! initialized) return status_ok;
-
-    LOGSTEP ("--> gdbstub_be_stop\n");
 
     // Write 'haltreq' to dmcontrol
     uint32_t dmcontrol = fn_mk_dmcontrol (true,     // haltreq
@@ -1161,18 +1158,21 @@ uint32_t  gdbstub_be_stop (const uint8_t xlen)
 					  false,    // clrresethaltreq
 					  false,    // ndmreset
 					  true);    // dmactive_N
-    fprint_dmcontrol (logfile_fp, "    gdbstub_be_stop: write ", dmcontrol, "\n");
-
-    dmi_write (logfile_fp, dm_addr_dmcontrol, dmcontrol);
+    if (logfile_fp != NULL) {
+	fprint_dmcontrol (logfile_fp, "gdbstub_be_stop: write ", dmcontrol, "\n");
+	fflush (logfile_fp);
+    }
+    dmi_write (dm_addr_dmcontrol, dmcontrol);
 
     // Poll dmstatus until 'allhalted'
     uint32_t dmstatus;
-    poll_dmstatus ("    gdbstub_be_stop", DMSTATUS_ALLHALTED, DMSTATUS_ALLHALTED,
-		   & dmstatus, false);
+    poll_dmstatus ("gdbstub_be_stop", DMSTATUS_ALLHALTED, DMSTATUS_ALLHALTED, & dmstatus, false);
 
+    if (logfile_fp != NULL) {
+	fprintf (logfile_fp, "gdbstub_be_stop () => ok\n");
+	fflush (logfile_fp);
+    }
     run_mode = PAUSED;
-
-    LOGSTEP ("<-- gdbstub_be_stop => ok\n");
     return status_ok;
 }
 
@@ -1186,7 +1186,10 @@ int32_t  gdbstub_be_get_stop_reason (const uint8_t  xlen,
 {
     if (! initialized) return status_ok;
 
-    LOGSTEP ("--> gdbstub_be_get_stop_reason\n");
+    if (logfile_fp != NULL) {
+	fprintf (logfile_fp, "gdbstub_be_get_stop_reason ()\n");
+	fflush (logfile_fp);
+    }
 
     // Read dmstatus
     if (logfile_fp != NULL) {
@@ -1195,10 +1198,8 @@ int32_t  gdbstub_be_get_stop_reason (const uint8_t  xlen,
 	fflush (logfile_fp);
     }
     // Poll dmstatus until 'allhalted'
-    LOGSTEP ("    gdbstub_be_get_stop_reason: poll dmstatus until halted\n");
     uint32_t dmstatus;
-    poll_dmstatus ("gdbstub_be_get_stop_reason", DMSTATUS_ALLHALTED, DMSTATUS_ALLHALTED,
-		   & dmstatus, commands_preempt);
+    poll_dmstatus ("gdbstub_be_get_stop_reason", DMSTATUS_ALLHALTED, DMSTATUS_ALLHALTED, & dmstatus, commands_preempt);
 
     if (! (dmstatus & DMSTATUS_ALLHALTED)) {
 	// Still running
@@ -1223,11 +1224,20 @@ int32_t  gdbstub_be_get_stop_reason (const uint8_t  xlen,
         }
 	return -2;
     }
-    LOGSTEP ("    gdbstub_be_get_stop_reason (): halted\n");
+    if (logfile_fp != NULL) {
+	fprintf (logfile_fp,
+		 "    gdbstub_be_get_stop_reason (): halted\n");
+	fflush (logfile_fp);
+    }
 
     run_mode = PAUSED;
 
-    LOGSTEP ("    gdbstub_be_get_stop_reason () => read dcsr.cause\n");
+    // Read dcsr
+    if (logfile_fp != NULL) {
+	fprintf (logfile_fp,
+		 "    gdbstub_be_get_stop_reason () => read dcsr.cause\n");
+	fflush (logfile_fp);
+    }
 
     uint64_t dcsr64;
     uint8_t  cmderr;
@@ -1266,7 +1276,6 @@ int32_t  gdbstub_be_get_stop_reason (const uint8_t  xlen,
 	    fflush (logfile_fp);
 	}
     }
-    LOGSTEP ("<-- gdbstub_be_get_stop_reason\n");
     return 0;
 }
 
@@ -1284,7 +1293,7 @@ uint32_t  gdbstub_be_start_command (const uint8_t xlen)
     if (! initialized) return status_ok;
 
     if (logfile_fp != NULL) {
-	fprintf (logfile_fp, "================ gdbstub_be_start command %0d\n", command_num);
+	fprintf (logfile_fp, "======== START_COMMAND %0d\n", command_num);
 	fflush (logfile_fp);
     }
     command_num++;
@@ -1300,7 +1309,10 @@ uint32_t  gdbstub_be_PC_read (const uint8_t xlen, uint64_t *p_PC)
     *p_PC = 0;
     if (! initialized) return status_ok;
 
-    LOGSTEP ("--> gdbstub_be_PC_read (csr 0x7b1)\n");
+    if (logfile_fp != NULL) {
+	fprintf (logfile_fp, "gdbstub_be_PC_read (csr 0x7b1)\n");
+	fflush (logfile_fp);
+    }
 
     // Read 'dpc' in debug module, = CSR 0X7b1
     uint8_t  cmderr;
@@ -1308,14 +1320,14 @@ uint32_t  gdbstub_be_PC_read (const uint8_t xlen, uint64_t *p_PC)
     if (status == status_err) {
 	if (logfile_fp != NULL) {
 	    fprint_abstractcs_cmderr (logfile_fp,
-				      "<-- ERROR: gdbstub_be_PC_read (csr 0x7b1) => ",
+				      "    ERROR: gdbstub_be_PC_read (csr 0x7b1) => ",
 				      cmderr, "\n");
 	    fflush (logfile_fp);
 	}
     } else {
 	if (logfile_fp != NULL) {
 	    fprintf (logfile_fp,
-		     "<-- gdbstub_be_PC_read (csr 0x7b1) => 0x%0" PRIx64 "\n", *p_PC);
+		     "    gdbstub_be_PC_read (csr 0x7b1) => 0x%0" PRIx64 "\n", *p_PC);
 	    fflush (logfile_fp);
 	}
     }
@@ -1332,7 +1344,7 @@ uint32_t  gdbstub_be_GPR_read (const uint8_t xlen, uint8_t regnum, uint64_t *p_r
     if (! initialized) return status_ok;
 
     if (logfile_fp != NULL) {
-	fprintf (logfile_fp, "--> gdbstub_be_GPR_read (gpr 0x%0x)\n", regnum);
+	fprintf (logfile_fp, "gdbstub_be_GPR_read (gpr 0x%0x)\n", regnum);
 	fflush (logfile_fp);
     }
 
@@ -1346,7 +1358,7 @@ uint32_t  gdbstub_be_GPR_read (const uint8_t xlen, uint8_t regnum, uint64_t *p_r
     if (status == status_err) {
 	if (logfile_fp != NULL) {
 	    fprintf (logfile_fp,
-		     "<-- ERROR: gdbstub_be_GPR_read (gpr 0x%0x)", regnum);
+		     "    ERROR: gdbstub_be_GPR_read (gpr 0x%0x)", regnum);
 	    fprint_abstractcs_cmderr (logfile_fp, " => ", cmderr, "\n");
 	    fflush (logfile_fp);
 	}
@@ -1354,7 +1366,7 @@ uint32_t  gdbstub_be_GPR_read (const uint8_t xlen, uint8_t regnum, uint64_t *p_r
     else
 	if (logfile_fp != NULL) {
 	    fprintf (logfile_fp,
-		     "<-- gdbstub_be_GPR_read (gpr 0x%0x) => 0x%0" PRIx64 "\n",
+		     "    gdbstub_be_GPR_read (gpr 0x%0x) => 0x%0" PRIx64 "\n",
 		     regnum, *p_regval);
 	    fflush (logfile_fp);
 	}
@@ -1371,7 +1383,7 @@ uint32_t  gdbstub_be_FPR_read (const uint8_t xlen, uint8_t regnum, uint64_t *p_r
     if (! initialized) return status_ok;
 
     if (logfile_fp != NULL) {
-	fprintf (logfile_fp, "--> gdbstub_be_FPR_read (fpr 0x%0x)\n", regnum);
+	fprintf (logfile_fp, "gdbstub_be_FPR_read (fpr 0x%0x)\n", regnum);
 	fflush (logfile_fp);
     }
 
@@ -1393,7 +1405,7 @@ uint32_t  gdbstub_be_FPR_read (const uint8_t xlen, uint8_t regnum, uint64_t *p_r
     else
 	if (logfile_fp != NULL) {
 	    fprintf (logfile_fp,
-		     "<-- gdbstub_be_FPR_read (fpr 0x%0x) => 0x%0" PRIx64 "\n",
+		     "    gdbstub_be_FPR_read (fpr 0x%0x) => 0x%0" PRIx64 "\n",
 		     regnum, *p_regval);
 	    fflush (logfile_fp);
 	}
@@ -1410,7 +1422,7 @@ uint32_t  gdbstub_be_CSR_read (const uint8_t xlen, uint16_t regnum, uint64_t *p_
     if (! initialized) return status_ok;
 
     if (logfile_fp != NULL) {
-	fprintf (logfile_fp, "--> gdbstub_be_CSR_read (csr 0x%0x)\n", regnum);
+	fprintf (logfile_fp, "gdbstub_be_CSR_read (csr 0x%0x)\n", regnum);
 	fflush (logfile_fp);
     }
 
@@ -1424,7 +1436,7 @@ uint32_t  gdbstub_be_CSR_read (const uint8_t xlen, uint16_t regnum, uint64_t *p_
     if (status == status_err) {
 	if (logfile_fp != NULL) {
 	    fprintf (logfile_fp,
-		     "<-- ERROR: gdbstub_be_CSR_read (csr 0x%0x)",
+		     "    ERROR: gdbstub_be_CSR_read (csr 0x%0x)",
 		     regnum);
 	    fprint_abstractcs_cmderr (logfile_fp, " => ", cmderr, "\n");
 	    fflush (logfile_fp);
@@ -1433,7 +1445,7 @@ uint32_t  gdbstub_be_CSR_read (const uint8_t xlen, uint16_t regnum, uint64_t *p_
     else
 	if (logfile_fp != NULL) {
 	    fprintf (logfile_fp,
-		     "<-- gdbstub_be_CSR_read (csr 0x%0x) => 0x%0" PRIx64 "\n",
+		     "    gdbstub_be_CSR_read (csr 0x%0x) => 0x%0" PRIx64 "\n",
 		     regnum, *p_regval);
 	    fflush (logfile_fp);
 	}
@@ -1449,7 +1461,10 @@ uint32_t  gdbstub_be_PRIV_read (const uint8_t xlen, uint64_t *p_PRIV)
     *p_PRIV = 0;
     if (! initialized) return status_ok;
 
-    LOGSTEP ("--> gdbstub_be_PRIV_read\n");
+    if (logfile_fp != NULL) {
+	fprintf (logfile_fp, "gdbstub_be_PRIV_read\n");
+	fflush (logfile_fp);
+    }
 
     // PRIV is a virtual register aliasing dcsr.prv
     uint64_t dcsr64;
@@ -1459,7 +1474,7 @@ uint32_t  gdbstub_be_PRIV_read (const uint8_t xlen, uint64_t *p_PRIV)
     if (status == status_err) {
 	if (logfile_fp != NULL) {
 	    fprintf (logfile_fp,
-		     "<-- ERROR: gdbstub_be_PRIV_read");
+		     "    ERROR: gdbstub_be_PRIV_read");
 	    fprint_abstractcs_cmderr (logfile_fp, " => ", cmderr, "\n");
 	    fflush (logfile_fp);
 	}
@@ -1469,7 +1484,7 @@ uint32_t  gdbstub_be_PRIV_read (const uint8_t xlen, uint64_t *p_PRIV)
 	*p_PRIV = fn_dcsr_prv (dcsr);
 	if (logfile_fp != NULL) {
 	    fprintf (logfile_fp,
-		     "<-- gdbstub_be_PRIV_read => 0x%0" PRIx64 "\n",
+		     "    gdbstub_be_PRIV_read => 0x%0" PRIx64 "\n",
 		     *p_PRIV);
 	    fflush (logfile_fp);
 	}
@@ -1490,7 +1505,7 @@ uint32_t  gdbstub_be_mem_read_subword (const uint8_t   xlen,
 
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp,
-		 "--> gdbstub_be_mem_read_subword (addr 0x%0" PRIx64 ", data, len %0zu)\n",
+		 "gdbstub_be_mem_read_subword (addr 0x%0" PRIx64 ", data, len %0zu)\n",
 		 addr, len);
 	fflush (logfile_fp);
     }
@@ -1541,7 +1556,7 @@ uint32_t  gdbstub_be_mem_read_subword (const uint8_t   xlen,
 	fprint_sbcs (logfile_fp, "    Write ", sbcs, "\n");
 	fflush (logfile_fp);
     }
-    dmi_write (logfile_fp, dm_addr_sbcs, sbcs);
+    dmi_write (dm_addr_sbcs, sbcs);
 
     // Write address to sbaddress1/0 (which will start a bus read)
     status = gdbstub_be_wait_for_sb_nonbusy (NULL);
@@ -1549,27 +1564,25 @@ uint32_t  gdbstub_be_mem_read_subword (const uint8_t   xlen,
     if (xlen == 64) {
 	// Write upper 64b of address to sbaddress1
 	if (logfile_fp != NULL) {
-	    fprintf (logfile_fp, "    Write to sbaddress1: 0x%08" PRIx32 "\n",
-		     (uint32_t) (addr >> 32));
+	    fprintf (logfile_fp, "    Write to sbaddress1: 0x%08" PRIx32 "\n", (uint32_t) (addr >> 32));
 	    fflush (logfile_fp);
 	}
-	dmi_write (logfile_fp, dm_addr_sbaddress1, (uint32_t) (addr >> 32));
+	dmi_write (dm_addr_sbaddress1, (uint32_t) (addr >> 32));
     }
     // Write lower 32b of the address to sbaddress0
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp, "    Write to sbaddress0: 0x%08" PRIx32 "\n", (uint32_t) addr);
 	fflush (logfile_fp);
     }
-    dmi_write (logfile_fp, dm_addr_sbaddress0, (uint32_t) addr);
+    dmi_write (dm_addr_sbaddress0, (uint32_t) addr);
 
     status = gdbstub_be_wait_for_sb_nonbusy (NULL);
     if (status == status_err) return status;
-    uint32_t x = dmi_read (logfile_fp, dm_addr_sbdata0);
+    uint32_t x = dmi_read (dm_addr_sbdata0);
 
     // Return the data
     *data = x;
 
-    LOGSTEP ("<-- gdbstub_be_mem_read_subword\n");
     return status_ok;
 }
 
@@ -1587,7 +1600,7 @@ uint32_t  gdbstub_be_mem_read (const uint8_t   xlen,
 
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp,
-		 "--> gdbstub_be_mem_read (addr 0x%0" PRIx64 ", data, len %0zu)\n",
+		 "gdbstub_be_mem_read (addr 0x%0" PRIx64 ", data, len %0zu)\n",
 		 addr, len);
 	fflush (logfile_fp);
     }
@@ -1616,7 +1629,7 @@ uint32_t  gdbstub_be_mem_read (const uint8_t   xlen,
 	fprint_sbcs (logfile_fp, "    Write ", sbcs, "\n");
 	fflush (logfile_fp);
     }
-    dmi_write (logfile_fp, dm_addr_sbcs, sbcs);
+    dmi_write (dm_addr_sbcs, sbcs);
 
     // Write the initial address to sbaddress0 (which will start a bus read)
     status = gdbstub_be_wait_for_sb_nonbusy (NULL);
@@ -1627,21 +1640,21 @@ uint32_t  gdbstub_be_mem_read (const uint8_t   xlen,
 	    fprintf (logfile_fp, "    Write to sbaddress1: 0x%08" PRIx32 "\n", (uint32_t) (addr4 >> 32));
 	    fflush (logfile_fp);
 	}
-	dmi_write (logfile_fp, dm_addr_sbaddress1, (uint32_t) (addr4 >> 32));
+	dmi_write (dm_addr_sbaddress1, (uint32_t) (addr4 >> 32));
     }
     // Write lower 32b of the address to sbaddress0
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp, "    Write to sbaddress0: 0x%08" PRIx32 "\n", (uint32_t) addr4);
 	fflush (logfile_fp);
     }
-    dmi_write (logfile_fp, dm_addr_sbaddress0, (uint32_t) addr4);
+    dmi_write (dm_addr_sbaddress0, (uint32_t) addr4);
 
     // Repeatedly read sbdata0
     while (addr4 < addr_lim4) {
 	assert (jd < len);
 	status = gdbstub_be_wait_for_sb_nonbusy (NULL);
 	if (status == status_err) return status;
-	uint32_t x = dmi_read (logfile_fp, dm_addr_sbdata0);
+	uint32_t x = dmi_read (dm_addr_sbdata0);
 
 	// If this is first word and addr is unaligned, copy relevant bytes (< 4)
 	if (addr4 < addr) {
@@ -1691,7 +1704,6 @@ uint32_t  gdbstub_be_mem_read (const uint8_t   xlen,
 	fflush (logfile_fp);
     }
 
-    LOGSTEP ("<-- gdbstub_be_mem_read\n");
     return status_ok;
 }
 
@@ -1703,7 +1715,7 @@ uint32_t  gdbstub_be_PC_write (const uint8_t xlen, uint64_t regval)
     if (! initialized) return status_ok;
 
     if (logfile_fp != NULL) {
-	fprintf (logfile_fp, "--> gdbstub_be_PC_write (data 0x%0" PRIx64 ")\n", regval);
+	fprintf (logfile_fp, "gdbstub_be_PC_write (data 0x%0" PRIx64 ")\n", regval);
 	fflush (logfile_fp);
     }
 
@@ -1714,7 +1726,7 @@ uint32_t  gdbstub_be_PC_write (const uint8_t xlen, uint64_t regval)
     if (status == status_err) {
 	if (logfile_fp != NULL) {
 	    fprint_abstractcs_cmderr (logfile_fp,
-				      "<-- ERROR: gdbstub_be_PC_write (csr 0x7b1) => ",
+				      "    ERROR: gdbstub_be_PC_write (csr 0x7b1) => ",
 				      status, "\n");
 	    fflush (logfile_fp);
 	}
@@ -1722,7 +1734,7 @@ uint32_t  gdbstub_be_PC_write (const uint8_t xlen, uint64_t regval)
     else
 	if (logfile_fp != NULL) {
 	    fprintf (logfile_fp,
-		     "<-- gdbstub_be_PC_write (csr 0x7b1) => 0x%0" PRIx64 "\n",
+		     "    gdbstub_be_PC_write (csr 0x7b1) => 0x%0" PRIx64 "\n",
 		     regval);
 	    fflush (logfile_fp);
 	}
@@ -1739,7 +1751,7 @@ uint32_t  gdbstub_be_GPR_write (const uint8_t xlen, uint8_t regnum, uint64_t reg
 
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp,
-		 "--> gdbstub_be_GPR_write (gpr 0x%0x, data 0x%0" PRIx64 ")\n",
+		 "gdbstub_be_GPR_write (gpr 0x%0x, data 0x%0" PRIx64 ")\n",
 		 regnum, regval);
 	fflush (logfile_fp);
     }
@@ -1760,7 +1772,6 @@ uint32_t  gdbstub_be_GPR_write (const uint8_t xlen, uint8_t regnum, uint64_t reg
 	    fflush (logfile_fp);
 	}
     }
-    LOGSTEP ("<-- gdbstub_be_GPR_write\n");
     return status;
 }
 
@@ -1773,7 +1784,7 @@ uint32_t  gdbstub_be_FPR_write (const uint8_t xlen, uint8_t regnum, uint64_t reg
 
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp,
-		 "--> gdbstub_be_FPR_write (fpr 0x%0x, data 0x%0" PRIx64 ")\n",
+		 "gdbstub_be_FPR_write (fpr 0x%0x, data 0x%0" PRIx64 ")\n",
 		 regnum, regval);
 	fflush (logfile_fp);
     }
@@ -1795,7 +1806,6 @@ uint32_t  gdbstub_be_FPR_write (const uint8_t xlen, uint8_t regnum, uint64_t reg
 	}
     }
 
-    LOGSTEP ("<-- gdbstub_be_FPR_write\n");
     return status;
 }
 
@@ -1808,7 +1818,7 @@ uint32_t  gdbstub_be_CSR_write (const uint8_t xlen, uint16_t regnum, uint64_t re
 
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp,
-		 "--> gdbstub_be_CSR_write (csr 0x%0x, data 0x%0" PRIx64 ")\n",
+		 "gdbstub_be_CSR_write (csr 0x%0x, data 0x%0" PRIx64 ")\n",
 		 regnum, regval);
 	fflush (logfile_fp);
     }
@@ -1830,7 +1840,6 @@ uint32_t  gdbstub_be_CSR_write (const uint8_t xlen, uint16_t regnum, uint64_t re
 	}
     }
 
-    LOGSTEP ("<-- gdbstub_be_CSR_write\n");
     return status;
 }
 
@@ -1843,13 +1852,12 @@ uint32_t  gdbstub_be_PRIV_write (const uint8_t xlen, uint64_t regval)
 
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp,
-		 "--> gdbstub_be_PRIV_write (data 0x%0" PRIx64 ")\n",
+		 "gdbstub_be_PRIV_write (data 0x%0" PRIx64 ")\n",
 		 regval);
 	fflush (logfile_fp);
     }
 
     // PRIV is a virtual register aliasing dcsr.prv
-    LOGSTEP ("    gdbstub_be_PRIV_write: read DCSR\n");
     uint64_t dcsr64;
     uint8_t  cmderr;
     uint32_t status = gdbstub_be_reg_read (xlen, csr_addr_dcsr, &dcsr64, & cmderr);
@@ -1864,7 +1872,6 @@ uint32_t  gdbstub_be_PRIV_write (const uint8_t xlen, uint64_t regval)
 	return status;
     }
 
-    LOGSTEP ("    gdbstub_be_PRIV_write: write DCSR\n");
     uint32_t dcsr = (uint32_t) dcsr64;
     dcsr = fn_mk_dcsr (fn_dcsr_xdebugver (dcsr),
 		       fn_dcsr_ebreakm (dcsr),
@@ -1890,7 +1897,6 @@ uint32_t  gdbstub_be_PRIV_write (const uint8_t xlen, uint64_t regval)
 	}
     }
 
-    LOGSTEP ("<-- gdbstub_be_PRIV_write\n");
     return status;
 }
 
@@ -1907,7 +1913,7 @@ uint32_t  gdbstub_be_mem_write_subword (const uint8_t   xlen,
 
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp,
-		 "--> gdbstub_be_mem_write_subword (addr 0x%0" PRIx64 ", data 0x%0" PRIx32 ", len %0zu)\n",
+		 "gdbstub_be_mem_write_subword (addr 0x%0" PRIx64 ", data 0x%0" PRIx32 ", len %0zu)\n",
 		 addr, data, len);
 	fflush (logfile_fp);
     }
@@ -1938,7 +1944,7 @@ uint32_t  gdbstub_be_mem_write_subword (const uint8_t   xlen,
 	sbaccess = DM_SBACCESS_32_BIT;
     }
 
-    LOGSTEP ("    gdbstub_be_mem_write_subword: write SBCS\n");
+    // Write SBCS
     status = gdbstub_be_wait_for_sb_nonbusy (NULL);
     if (status == status_err) return status;
     uint32_t sbcs = fn_mk_sbcs (true,                      // sbbusyerr (W1C)
@@ -1951,35 +1957,30 @@ uint32_t  gdbstub_be_mem_write_subword (const uint8_t   xlen,
 	fprint_sbcs (logfile_fp, "    Write ", sbcs, "\n");
 	fflush (logfile_fp);
     }
-    dmi_write (logfile_fp, dm_addr_sbcs, sbcs);
+    dmi_write (dm_addr_sbcs, sbcs);
 
     // Write address to sbaddress1/0
     status = gdbstub_be_wait_for_sb_nonbusy (NULL);
     if (status == status_err) return status;
     if (xlen == 64) {
 	// Write upper 32b of address to sbaddress1
-	LOGSTEP ("    gdbstub_be_mem_write_subword: write SBADDRESS1\n");
 	if (logfile_fp != NULL) {
-	    fprintf (logfile_fp, "    Write to sbaddress1: 0x%08" PRIx32 "\n",
-		     (uint32_t) (addr >> 32));
+	    fprintf (logfile_fp, "    Write to sbaddress1: 0x%08" PRIx32 "\n", (uint32_t) (addr >> 32));
 	    fflush (logfile_fp);
 	}
-	dmi_write (logfile_fp, dm_addr_sbaddress1, (uint32_t) (addr >> 32));
+	dmi_write (dm_addr_sbaddress1, (uint32_t) (addr >> 32));
     }
     // Write lower 32b of the address to sbaddress0
-    LOGSTEP ("    gdbstub_be_mem_write_subword: write SBADDRESS0\n");
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp, "    Write to sbaddress0: 0x%08" PRIx32 "\n", (uint32_t) addr);
 	fflush (logfile_fp);
     }
-    dmi_write (logfile_fp, dm_addr_sbaddress0, (uint32_t) addr);
+    dmi_write (dm_addr_sbaddress0, (uint32_t) addr);
 
     // Write the data
-    LOGSTEP ("    gdbstub_be_mem_write_subword: write sbdata0\n");
-    dmi_write (logfile_fp, dm_addr_sbdata0, data);
+    dmi_write (dm_addr_sbdata0, data);
 
     status = gdbstub_be_wait_for_sb_nonbusy (NULL);
-    LOGSTEP ("<-- gdbstub_be_mem_write_subword\n");
     return status;
 }
 
@@ -1996,7 +1997,7 @@ uint32_t  gdbstub_be_mem_write (const uint8_t   xlen,
 
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp,
-		 "--> gdbstub_be_mem_write (addr 0x%0" PRIx64 ", data, len %0zu)\n",
+		 "gdbstub_be_mem_write (addr 0x%0" PRIx64 ", data, len %0zu)\n",
 		 addr, len);
 	fflush (logfile_fp);
     }
@@ -2060,7 +2061,7 @@ uint32_t  gdbstub_be_mem_write (const uint8_t   xlen,
 	fprint_sbcs (logfile_fp, "    Write ", sbcs, "\n");
 	fflush (logfile_fp);
     }
-    dmi_write (logfile_fp, dm_addr_sbcs, sbcs);
+    dmi_write (dm_addr_sbcs, sbcs);
 
     // Write address to sbaddress1/0
     status = gdbstub_be_wait_for_sb_nonbusy (NULL);
@@ -2068,18 +2069,17 @@ uint32_t  gdbstub_be_mem_write (const uint8_t   xlen,
     if (xlen == 64) {
 	// Write upper 64b of address to sbaddress1
 	if (logfile_fp != NULL) {
-	    fprintf (logfile_fp, "    Write to sbaddress1: 0x%08" PRIx32 "\n",
-		     (uint32_t) (addr4 >> 32));
+	    fprintf (logfile_fp, "    Write to sbaddress1: 0x%08" PRIx32 "\n", (uint32_t) (addr4 >> 32));
 	    fflush (logfile_fp);
 	}
-	dmi_write (logfile_fp, dm_addr_sbaddress1, (uint32_t) (addr4 >> 32));
+	dmi_write (dm_addr_sbaddress1, (uint32_t) (addr4 >> 32));
     }
     // Write lower 64b of the address to sbaddress0
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp, "    Write to sbaddress0: 0x%08" PRIx32 "\n", (uint32_t) addr4);
 	fflush (logfile_fp);
     }
-    dmi_write (logfile_fp, dm_addr_sbaddress0, (uint32_t) addr4);
+    dmi_write (dm_addr_sbaddress0, (uint32_t) addr4);
 
     while (addr4 < addr_lim4) {
 	// status = gdbstub_be_wait_for_sb_nonbusy (NULL);
@@ -2101,7 +2101,7 @@ uint32_t  gdbstub_be_mem_write (const uint8_t   xlen,
 		     "    ... mem [0x%08" PRIx64 "] <= 0x%08x\n",
 		     addr4, x);
 
-	dmi_write (logfile_fp, dm_addr_sbdata0, x);
+	dmi_write (dm_addr_sbdata0, x);
 
 	addr4 += 4;
 	jd    += 4;
@@ -2133,7 +2133,6 @@ uint32_t  gdbstub_be_mem_write (const uint8_t   xlen,
 	    fprintf (logfile_fp, "    ERROR: sbcs.sbbusyerror\n");
 	    fflush (logfile_fp);
 	}
-	LOGSTEP ("<-- gdbstub_be_mem_write\n");
 	return status_err;
     }
 
@@ -2143,12 +2142,10 @@ uint32_t  gdbstub_be_mem_write (const uint8_t   xlen,
 	    fprint_sberror (logfile_fp, "    ERROR: sbcs.sberror: ", sberror, "\n");
 	    fflush (logfile_fp);
 	}
-	LOGSTEP ("<-- gdbstub_be_mem_write\n");
 	return status_err;
     }
 
     // ----------------
-    LOGSTEP ("<-- gdbstub_be_mem_write\n");
     return status_ok;
 }
 
@@ -2170,7 +2167,7 @@ uint32_t  gdbstub_be_dmi_read (const uint16_t  dmi_addr, uint32_t *p_data)
 	fflush (logfile_fp);
     }
 
-    uint32_t data = dmi_read (logfile_fp, dmi_addr);
+    uint32_t data = dmi_read (dmi_addr);
     *p_data = data;
 
     return status_ok;
@@ -2190,7 +2187,7 @@ uint32_t  gdbstub_be_dmi_write (const uint16_t  dmi_addr, uint32_t  dmi_data)
 	fflush (logfile_fp);
     }
 
-    dmi_write (logfile_fp, dmi_addr, dmi_data);
+    dmi_write (dmi_addr, dmi_data);
     return status_ok;
 }
 

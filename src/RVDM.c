@@ -85,8 +85,6 @@ const uint16_t dm_addr_sbdata3      = 0x3f;
 
 void fprint_dm_addr_name (FILE *fp, char *pre, const uint16_t dm_addr, char *post)
 {
-    if (fp == NULL) return;
-
     fprintf (fp, "%s", pre);
 
     // ----------------
@@ -141,7 +139,6 @@ void fprint_dm_addr_name (FILE *fp, char *pre, const uint16_t dm_addr, char *pos
     else fprintf (fp, "dmi addr 0x%0x", dm_addr);
 
     fprintf (fp, "%s", post);
-    fflush (fp);
 }
 
 // ----------------------------------------------------------------
@@ -197,8 +194,6 @@ bool     fn_dmcontrol_dmactive        (uint32_t dm_word) { return ((dm_word >>  
 
 void fprint_dmcontrol (FILE *fp, char *pre, uint32_t dmcontrol, char *post)
 {
-    if (fp == NULL) return;
-
     fprintf (fp, "%sDMCONTROL{0x%08x= ", pre, dmcontrol);
 
     if (fn_dmcontrol_haltreq         (dmcontrol)) fprintf (fp, " haltreq");
@@ -214,7 +209,6 @@ void fprint_dmcontrol (FILE *fp, char *pre, uint32_t dmcontrol, char *post)
     if (fn_dmcontrol_dmactive        (dmcontrol)) fprintf (fp, " dmactive");
 
     fprintf (fp, "}%s", post);
-    fflush (fp);
 }
 
 // ----------------------------------------------------------------
@@ -241,8 +235,6 @@ static uint8_t fn_dmstatus_version      (uint32_t x)  { return (x & 0xF); }
 
 void fprint_dmstatus (FILE *fp, char *pre, uint32_t dmstatus, char *post)
 {
-    if (fp == NULL) return;
-
     fprintf (fp, "%sDMSTATUS{0x%08x= ", pre, dmstatus);
     if (fn_dmstatus_impebreak       (dmstatus)) fprintf (fp, " impebreak");
     if (fn_dmstatus_allhavereset    (dmstatus)) fprintf (fp, " allhavereset");
@@ -269,7 +261,6 @@ void fprint_dmstatus (FILE *fp, char *pre, uint32_t dmstatus, char *post)
     else if (version == 15) fprintf (fp, " Debug Module vUNKNOWN");
     else                    fprintf (fp, " Debug Module vBOGUS");
     fprintf (fp, "}%s", post);
-    fflush (fp);
 }
 
 // ================================================================
@@ -297,8 +288,6 @@ void fprint_abstractcs_cmderr (FILE *fp,
 			       const DM_abstractcs_cmderr cmderr,
 			       const char *post)
 {
-    if (fp == NULL) return;
-
     fprintf (fp, "%s", pre);
     switch (cmderr) {
     case DM_ABSTRACTCS_CMDERR_NONE:          fprintf (fp, "ABSTRACTCS_CMDERR_NONE"); break;
@@ -312,20 +301,16 @@ void fprint_abstractcs_cmderr (FILE *fp,
     default:                                 fprintf (fp, "ABSTRACTCS_CMDERR %0d", cmderr);
     }
     fprintf (fp, "%s", post);
-    fflush (fp);
 }
 
 void fprint_abstractcs (FILE *fp, char *pre, uint32_t abstractcs, char *post)
 {
-    if (fp == NULL) return;
-
     fprintf (fp, "%sABSTRACT_CS{0x%08x= ", pre, abstractcs);
     fprintf (fp, " progbufsize %0d", fn_abstractcs_progbufsize (abstractcs));
     if (fn_abstractcs_busy (abstractcs)) fprintf (fp, " busy");
     fprint_abstractcs_cmderr (fp, " ", fn_abstractcs_cmderr (abstractcs), "");
     fprintf (fp, " datacount %0d", fn_abstractcs_datacount (abstractcs));
     fprintf (fp, "}%s", post);
-    fflush (fp);
 }
 
 // ----------------------------------------------------------------
@@ -365,8 +350,6 @@ uint16_t fn_command_access_reg_regno     (uint32_t dm_word) { return (dm_word & 
 
 void fprint_command (FILE *fp, char *pre, uint32_t command, char *post)
 {
-    if (fp == NULL) return;
-
     fprintf (fp, "%sCOMMAND{0x%08x= ", pre, command);
     if (fn_command_cmdtype (command) == DM_COMMAND_CMDTYPE_ACCESS_REG) {
 	fprintf (fp, "access_reg_reg_size %0d", fn_command_access_reg_size (command));
@@ -389,7 +372,6 @@ void fprint_command (FILE *fp, char *pre, uint32_t command, char *post)
     // TODO: other CMDTYPEs
 
     fprintf (fp, "}%s", post);
-    fflush (fp);
 }
 
 // ================================================================
@@ -397,8 +379,6 @@ void fprint_command (FILE *fp, char *pre, uint32_t command, char *post)
 
 void fprint_sberror (FILE *fp, const char *pre, const DM_sberror sberror, const char *post)
 {
-    if (fp == NULL) return;
-
     fprintf (fp, "%s", pre);
     switch (sberror) {
     case DM_SBERROR_NONE:             fprintf (fp, "SBERROR_NONE"); break;
@@ -412,7 +392,6 @@ void fprint_sberror (FILE *fp, const char *pre, const DM_sberror sberror, const 
     default:                          fprintf (fp, "SBERROR %0d", sberror);
     }
     fprintf (fp, "%s", post);
-    fflush (fp);
 }
 
 uint32_t fn_mk_sbcs (bool        sbbusyerror,
@@ -455,8 +434,6 @@ bool        fn_sbcs_sbaccess8       (uint32_t dm_word) { return ((dm_word >> 0) 
 
 void fprint_sbcs (FILE *fp, const char *pre, const uint32_t sbcs, const char *post)
 {
-    if (fp == NULL) return;
-
     fprintf (fp, "%sSBCS{", pre);
     fprintf (fp, "version %0d", fn_sbcs_sbversion (sbcs));
     if (fn_sbcs_sbbusyerror  (sbcs)) fprintf (fp, " busyerror");
@@ -500,7 +477,6 @@ void fprint_sbcs (FILE *fp, const char *pre, const uint32_t sbcs, const char *po
     if (fn_sbcs_sbaccess8   (sbcs)) fprintf (fp, " 8b");
 
     fprintf (fp, "}%s", post);
-    fflush (fp);
 }
 
 // ================================================================
@@ -550,8 +526,6 @@ DM_DCSR_PRV fn_dcsr_prv     (uint32_t dm_word) { return ((dm_word >>  0) & 0x3);
 
 void fprint_DM_DCSR_Cause (FILE *fp, char *pre, DM_DCSR_Cause  cause, char *post)
 {
-    if (fp == NULL) return;
-
     fprintf (fp, "%s", pre);
     switch (cause) {
     case DM_DCSR_CAUSE_RESERVED0:  fprintf (fp, "CAUSE_RESERVED0");  break;
@@ -565,13 +539,10 @@ void fprint_DM_DCSR_Cause (FILE *fp, char *pre, DM_DCSR_Cause  cause, char *post
     default:                       fprintf (fp, "CAUSE %0d", cause); break;
     }
     fprintf (fp, "%s", post);
-    fflush (fp);
 }
 
 void fprint_dcsr (FILE *fp, char *pre, uint32_t dcsr, char *post)
 {
-    if (fp == NULL) return;
-
     fprintf (fp, "%sDCSR{0x%08x= ", pre, dcsr);
 
     DM_DCSR_XDebugVer ver = fn_dcsr_xdebugver (dcsr);
@@ -592,7 +563,6 @@ void fprint_dcsr (FILE *fp, char *pre, uint32_t dcsr, char *post)
     fprintf (fp, " priv %0d", fn_dcsr_prv (dcsr));
 
     fprintf (fp, "}%s", post);
-    fflush (fp);
 }
 
 // ================================================================
