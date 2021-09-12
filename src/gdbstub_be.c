@@ -615,6 +615,11 @@ uint32_t  gdbstub_be_final (const uint8_t xlen)
 {
     // Fill in whatever is needed as final actions
 
+    if (logfile_fp != NULL) {
+	fprintf (logfile_fp, "%s (GDB detach)\n", __FUNCTION__);
+	fflush (logfile_fp);
+    }
+
     uint64_t dcsr64;
     uint8_t  cmderr;
     uint32_t status = gdbstub_be_reg_read (xlen, csr_addr_dcsr, & dcsr64, & cmderr);
@@ -1031,11 +1036,29 @@ uint32_t gdbstub_be_continue (const uint8_t xlen)
 
     dmi_write (dm_addr_dmcontrol, dmcontrol);
 
+    // Poll dmstatus until 'allrunning'
+    uint32_t dmstatus;
+    poll_dmstatus ("gdbstub_be_continue", DMSTATUS_ALLRUNNING, DMSTATUS_ALLRUNNING,
+		   & dmstatus, false);
+    fprint_dmstatus (logfile_fp, "    ", dmstatus, "\n");
+
+    if (! (dmstatus & DMSTATUS_ALLRUNNING)) {
+	// Still not running
+        if ((verbosity > 1) && (logfile_fp != NULL)) {
+	    fprintf (logfile_fp, "    %s => still not running (numHaltChecks %d ) \n",
+		     __FUNCTION__, numHaltChecks);
+	    fflush (logfile_fp);
+        }
+	return status_err;
+    }
+
+
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp,
 		 "gdbstub_be_continue () => ok\n");
 	fflush (logfile_fp);
     }
+
     numHaltChecks = 0;
 
     run_mode = CONTINUE;
@@ -1129,7 +1152,7 @@ uint32_t  gdbstub_be_step (const uint8_t xlen)
 	fflush (logfile_fp);
     }
     uint32_t dmstatus;
-    poll_dmstatus ("gdbstub_be_stop", DMSTATUS_ALLHALTED, DMSTATUS_ALLHALTED, & dmstatus, false);
+    poll_dmstatus ("gdbstub_be_step", DMSTATUS_ALLHALTED, DMSTATUS_ALLHALTED, & dmstatus, false);
 
     if (logfile_fp != NULL) {
 	fprintf (logfile_fp, "gdbstub_be_step () => ok\n");
