@@ -21,13 +21,19 @@
 // These should be filled in with the appropriate mechanisms that
 // perform the actual DMI read/write on the RISC-V Debug module.
 
-void dmi_write (uint16_t addr, uint32_t data)
+void dmi_write (FILE *logfile_fp, uint16_t addr, uint32_t data)
 {
-    fprintf (stderr, "RVDM.c: dmi_write(): Not yet implemented\n");
+    if (logfile_fp != NULL) {
+	fprintf (logfile_fp, "dmi_write (addr %0x, data %0x)    NOT YET IMPLEMENTED\n",
+		 addr, data);
+    }
 }
 
-uint32_t  dmi_read  (uint16_t addr)
+uint32_t  dmi_read  (FILE *logfile_fp, uint16_t addr)
 {
-    fprintf (stderr, "RVDM.c: dmi_read(): Not yet implemented\n");
+    uint32_t data = 0;
+    if (logfile_fp != NULL) {
+	fprintf (logfile_fp, "dmi_read  (addr %0x) => %0x    NOT YET IMPLEMENTED\n", addr, data);
+    }
     return 0;
 }

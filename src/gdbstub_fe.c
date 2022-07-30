@@ -1529,6 +1529,8 @@ handle_RSP_X_write_mem_bin_data (const char *buf, const size_t buf_len)
 
 void *main_gdbstub (void *arg)
 {
+    fprintf (stdout, "--> %s\n", __FUNCTION__);
+
     Gdbstub_FE_Params *params = (Gdbstub_FE_Params *) arg;
     logfile = params->logfile;
     gdb_fd  = params->gdb_fd;

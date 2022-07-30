@@ -24,7 +24,7 @@
 
 // 1 Gigabyte size
 // #define MAX_MEM_SIZE (((uint64_t) 0x400) * ((uint64_t) 0x400) * ((uint64_t) 0x400))
-#define MAX_MEM_SIZE ((uint64_t) 0x90000000)
+#define MAX_MEM_SIZE ((uint64_t) 0x10000000)
 
 static char mem_buf [MAX_MEM_SIZE];
 
