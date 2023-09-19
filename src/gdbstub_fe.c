@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2018 Bluespec, Inc. All Rights Reserved
+// Copyright (c) 2016-2023 Bluespec, Inc. All Rights Reserved
 // Author: Rishiyur Nikhil
 //
 // ================================================================
@@ -1129,7 +1129,7 @@ handle_RSP_M_write_mem_hex_data (const char *buf, const size_t buf_len)
     if (p == NULL) {
 	if (logfile) {
 	    fprintf (logfile, "ERROR: gdbstub_fe: packet '$M addr, len ...' packet from GDB: no ':' following len\n");
-	    fprintf (logfile, "    addr = 0x%0" PRIx64 ", len = 0x%0" PRIx64 "\n", addr, length);
+	    fprintf (logfile, "    addr = 0x%0" PRIx64 ", len = 0x%zu\n", addr, length);
 	}
 	send_OK_or_error_response (status_err);
 	return;
@@ -1141,8 +1141,8 @@ handle_RSP_M_write_mem_hex_data (const char *buf, const size_t buf_len)
 	if (logfile) {
 	    fprintf (logfile,
 		     "ERROR: gdbstub_fe.packet '$M addr, len: ...' packet from GDB: fewer than (len*2) hex digits\n");
-	    fprintf (logfile, "    addr = 0x%0" PRIx64 ", len = 0x%0" PRIx64 "\n", addr, length);
-	    fprintf (logfile, "    # of hex data digits = %0zu; len * 2 = 0x%0" PRId64 "\n",
+	    fprintf (logfile, "    addr = 0x%0" PRIx64 ", len = 0x%zu\n", addr, length);
+	    fprintf (logfile, "    # of hex data digits = %0zu; len * 2 = 0x%zu\n",
 		     num_hex_data_digits, length * 2);
 	}
 	send_OK_or_error_response (status_err);

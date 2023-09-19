@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Bluespec, Inc. All Rights Reserved
+// Copyright (c) 2020-2023 Bluespec, Inc. All Rights Reserved
 // Author: Rishiyur Nikhil
 //
 // ================================================================
@@ -10,6 +10,9 @@
 // HIGH LEVEL API (called from the platform-specific top-level code)
 // ****************************************************************
 // ****************************************************************
+
+extern
+uint8_t gdbstub_be_xlen;
 
 // ================================================================
 // Spawn a new thread for main_gdbstub with a pipe set up for later

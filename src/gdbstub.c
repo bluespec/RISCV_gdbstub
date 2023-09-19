@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Bluespec, Inc. All Rights Reserved
+// Copyright (c) 2020-2023 Bluespec, Inc. All Rights Reserved
 // Author: Rishiyur Nikhil
 //
 // ================================================================
@@ -50,7 +50,13 @@ void gdbstub_start_common (FILE *logfile, void *(*start_routine) (void *))
     gdbstub_params.autoclose_logfile_stop_fd = true;
 
     pthread_create (& gdbstub_thread, NULL, start_routine, & gdbstub_params);
+
+#ifndef __APPLE__
+    // On Apple MacOS, pthread_setname_np() only takes in arg (name)
+    //     and sets the name for the invoking thread.
+    // On Linux gcc it takes two args: thread and name.
     pthread_setname_np (gdbstub_thread, "gdbstub");
+#endif
 }
 
 // ================================================================
@@ -65,6 +71,13 @@ void *main_gdbstub_accept (void *arg)
     int   sockfd  = params->gdb_fd;
     int   stop_fd = params->stop_fd;
     bool  autoclose_logfile_stop_fd = params->autoclose_logfile_stop_fd;
+
+#ifdef __APPLE__
+    // On Apple MacOS, pthread_setname_np() only takes in arg (name)
+    //     and sets the name for the invoking thread.
+    // On Linux gcc it takes two args: thread and name.
+    pthread_setname_np ("gdbstub");
+#endif
 
     // Keep files open across all sessions; we manually close below.
     params->autoclose_logfile_stop_fd = false;
