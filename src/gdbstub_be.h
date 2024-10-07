@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Bluespec, Inc. All Rights Reserved
+// Copyright (c) 2020-2024 Bluespec, Inc. All Rights Reserved
 // Author: Rishiyur Nikhil
 //
 // ================================================================
@@ -224,7 +224,16 @@ uint32_t  gdbstub_be_dmi_read (uint16_t dmi_addr, uint32_t *p_data);
 extern
 uint32_t  gdbstub_be_dmi_write (uint16_t dmi_addr, uint32_t dmi_data);
 
+// ****************************************************************
+// ****************************************************************
+// ****************************************************************
+// This function is needed only in gdbstub_be_DMI_<transport>.c files.
+// It is used in gdbstub_be_DMI to preempt polling of DMI registers
+// when there is some activity on the GDB socket.  Though it has
+// prefix 'gdbstub_be' it is actually implemented in gdbstub_fe.c,
+// where the GDB sockets exist.
+
 extern
 bool  gdbstub_be_poll_preempt (bool include_commands);
 
-// ================================================================
+// ****************************************************************
